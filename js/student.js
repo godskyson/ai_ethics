@@ -182,7 +182,11 @@ async function startSession(sid) {
     state.mustChange = v;
     state.loaded.pin = true;
     route();
-  }, err => console.error(err)));
+  }, err => {
+    // 읽기 권한이 사라졌다 = 교사가 이 학번을 명단에서 삭제했다 (로그인 정보도 함께 지워짐)
+    console.error(err);
+    if (state.sid === sid) forceLogout('이 학번으로 더 이상 로그인할 수 없어요. 선생님께 확인해 주세요.');
+  }));
 
   // 평가 상태
   unsubs.push(onValue(ref(db, 'exam/status'), snap => {

@@ -5,15 +5,13 @@ import {
 } from './firebase.js';
 import { TEACHER_EMAIL } from './firebase-config.js';
 import {
-  INITIAL_PIN, classOf, hashPin, makeExamId, fmtTime, fmtDuration, escapeHtml, showError, toast, confirmDialog,
+  INITIAL_PIN, classOf, hashPin, makeExamId, fmtTime, fmtDuration, showError, toast, confirmDialog,
 } from './common.js';
-import { COLORS } from './classifier.js';
+import { STEP_NAMES, makeRow, stepLabel, openDetail, refreshDetail, isDetailOpen } from './detail.js';
+import * as roster from './roster.js';
+import * as results from './results.js';
 
 const $ = id => document.getElementById(id);
-
-const STEP_NAMES = ['대기', '모델 이름', '데이터 입력', '학습', '테스트', '윤리 서술', '제출 완료'];
-const STALE_MS = 90_000; // 접속 중인데 이 시간 동안 신호가 없으면 "응답 없음"
-const ETHICS = [['privacy', '개인정보 활용 주의점'], ['bias', '인공지능 편향 주의점'], ['judgment', '인공지능 판단 주의점']];
 
 // ----- 데이터 -----
 const db$ = { exam: {}, roster: {}, progress: {}, presence: {} };
@@ -83,27 +81,14 @@ function startDashboard() {
 function stopDashboard() {
   while (unsubs.length) unsubs.pop()();
   clearInterval(ticker);
+  results.stop();
 }
 
 // ----- 학생 한 명의 상태 계산 -----
 function studentRows() {
   const now = serverNow();
-  return Object.keys(db$.roster).sort().map(sid => {
-    const p = db$.progress[sid] || null;
-    const pr = db$.presence[sid] || null;
-    const online = !!(pr && pr.online);
-    const stale = online && pr.lastSeen && now - pr.lastSeen > STALE_MS;
-    const away = online && pr.state === 'away';
-    const step = p ? Math.min(Number(p.step) || 0, 6) : 0;
-    const submitted = !!(p && p.submitted);
-    const editing = !!(p && !p.submitted && (p.submitCount || 0) > 0);
-    return {
-      sid, cls: (db$.roster[sid] && db$.roster[sid].classId) || classOf(sid),
-      p, pr, online, stale, away, step, submitted, editing,
-      awayCount: (pr && pr.awayCount) || 0, awayMs: (pr && pr.awayMs) || 0, pasteCount: (pr && pr.pasteCount) || 0,
-      neverSeen: !pr,
-    };
-  });
+  return Object.keys(db$.roster).sort().map(sid =>
+    makeRow(sid, db$.roster[sid] && db$.roster[sid].classId, db$.progress[sid], db$.presence[sid], now));
 }
 
 // ----- 렌더링 -----
@@ -113,7 +98,8 @@ function render() {
   renderSummary(rows);
   renderClassFilter(rows);
   renderGrid(rows);
-  if ($('detail').open) renderDetail(); // 열려 있는 상세 창도 실시간으로 갱신
+  if (isDetailOpen()) refreshDetail(); // 열려 있는 상세 창도 실시간으로 갱신
+  roster.render(db$.roster, db$.presence);
 }
 
 function renderHeader() {
@@ -161,12 +147,6 @@ function renderClassFilter(rows) {
   sel.innerHTML = '<option value="">전체</option>' + classes.map(c => `<option value="${c}">${c}반</option>`).join('');
   sel.value = classes.includes(cur) ? cur : '';
   sel.dataset.key = key;
-}
-
-function stepLabel(r) {
-  if (r.submitted) return '제출 완료';
-  if (!r.p) return r.online ? '대기 중' : (r.neverSeen ? '미접속' : '시작 전');
-  return `${r.step}단계 · ${STEP_NAMES[r.step] || ''}`;
 }
 
 function renderGrid(all) {
@@ -217,7 +197,7 @@ $('grid').addEventListener('click', async e => {
   const btn = e.target.closest('button[data-act]');
   if (!btn) return;
   const sid = btn.closest('[data-sid]').dataset.sid;
-  if (btn.dataset.act === 'detail') openDetail(sid);
+  if (btn.dataset.act === 'detail') openLiveDetail(sid);
   if (btn.dataset.act === 'reset') resetPin(sid);
 });
 
@@ -240,55 +220,10 @@ async function resetPin(sid) {
   }
 }
 
-// ----- 학생 상세 -----
-const arr = v => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []).filter(x => x != null);
-let detailSid = null;
-
-function openDetail(sid) {
-  detailSid = sid;
-  renderDetail();
-  const dlg = $('detail');
-  if (!dlg.open) dlg.showModal();
+// ----- 학생 상세 (실시간) -----
+function openLiveDetail(sid) {
+  openDetail(() => studentRows().find(x => x.sid === sid), '실시간');
 }
-
-function renderDetail() {
-  const sid = detailSid;
-  if (!sid) return;
-  const r = studentRows().find(x => x.sid === sid);
-  if (!r) return;
-  const p = r.p || {};
-  const ds = arr(p.dataset);
-  const tests = arr(p.tests);
-  const ethics = p.ethics || {};
-  $('detailTitle').textContent = `${sid} (${r.cls}반)`;
-  const colorOf = label => Math.max(0, ds.findIndex(d => d.label === label)) % COLORS;
-  $('detailBody').innerHTML = `
-    <div class="d-sec"><div class="d-grid">
-      <div>상태<b>${!r.online ? '오프라인' : r.away ? '이탈 중' : '집중'}</b></div>
-      <div>단계<b>${escapeHtml(stepLabel(r))}</b></div>
-      <div>이탈<b>${r.awayCount}회 · ${fmtDuration(r.awayMs)}</b></div>
-      <div>붙여넣기<b>${r.pasteCount}회</b></div>
-      <div>제출<b>${p.submittedAt ? fmtTime(p.submittedAt) : '-'}${(p.submitCount || 0) > 1 ? ` (${p.submitCount}회)` : ''}</b></div>
-    </div></div>
-    <div class="d-sec"><h3>모델 이름</h3><p class="d-text ${p.modelName ? '' : 'empty'}">${escapeHtml(p.modelName || '아직 입력하지 않았어요')}</p></div>
-    <div class="d-sec"><h3>학습 데이터</h3>${ds.length ? ds.map((d, i) => `
-      <div class="d-class" style="--cc: var(--c${i % COLORS})"><h4>${escapeHtml(d.label || '(이름 없음)')} · ${arr(d.texts).length}문장</h4>
-      <p>${arr(d.texts).map(escapeHtml).join(' / ')}</p></div>`).join('') : '<p class="d-text empty">아직 입력하지 않았어요</p>'}</div>
-    <div class="d-sec"><h3>테스트 문장</h3>${tests.some(t => t.text) ? tests.map((t, i) => {
-      const probs = arr(t.probs);
-      return `<div class="d-test"><b>${i + 1}.</b> ${escapeHtml(t.text || '')}
-        ${t.top ? `<div>→ <span class="badge" style="background: var(--c${colorOf(t.top)})">${escapeHtml(t.top)}</span>
-        <span class="probs">${probs.map(q => `${escapeHtml(q.label)} ${(q.prob * 100).toFixed(1)}%`).join(' · ')}</span></div>` : '<div class="probs">분류 전</div>'}</div>`;
-    }).join('') : '<p class="d-text empty">아직 입력하지 않았어요</p>'}</div>
-    ${ETHICS.map(([k, title]) => {
-      const text = (ethics[k] || '').trim();
-      return `<div class="d-sec"><h3>${title} <span class="small muted">${text.length}자</span></h3>
-        <p class="d-text ${text ? '' : 'empty'}">${escapeHtml(text || '아직 쓰지 않았어요')}</p></div>`;
-    }).join('')}`;
-}
-
-$('detailClose').addEventListener('click', () => $('detail').close());
-$('detail').addEventListener('close', () => { detailSid = null; });
 
 // ----- 평가 제어 -----
 $('startBtn').addEventListener('click', async () => {
@@ -365,5 +300,6 @@ for (const [tabId, viewId] of tabs) {
       $(t).setAttribute('aria-selected', String(t === tabId));
       $(v).hidden = v !== viewId;
     }
+    if (viewId === 'resultsView') results.start(); // 결과는 탭을 열 때 처음 불러온다
   });
 }

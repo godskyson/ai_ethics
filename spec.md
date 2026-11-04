@@ -30,7 +30,8 @@
 │ index.html (학생)            teacher.html (교사) │
 │   ├ js/student.js              ├ js/teacher.js    │
 │   ├ js/classifier.js           ├ js/roster.js     │
-│   └ js/common.js  ←── 공통 ──→ └ js/export.js     │
+│   └ js/common.js  ←── 공통 ──→ ├ js/results.js    │
+│     js/exam.js, presence.js     └ js/detail.js     │
 └──────────────┬──────────────────────┬────────────┘
                │ Firebase JS SDK 10.12.2 (ES module)
        익명 Auth│                      │이메일/비밀번호 Auth
@@ -57,9 +58,12 @@
 | `js/common.js` | `hashPin()`, `isValidSid()`, `classOf()`, `fmtTime()`, `debounce()` |
 | `js/classifier.js` | `tokenize()`, `train()`, `predict()` (참고 원본과 같은 알고리즘) |
 | `js/student.js` | 학생 상태 머신, 화면 전환, 자동 저장, 이탈 감지 |
-| `js/teacher.js` | 교사 로그인, 평가 제어, 대시보드 구독과 렌더링 |
-| `js/roster.js` | 반과 학생 등록·삭제, 일괄 붙여넣기, 비밀번호 초기화 |
-| `js/export.js` | 결과 스냅샷 조회, CSV 생성 |
+| `js/exam.js` | 학생 평가 1~5단계, 자동 저장, 제출·수정 |
+| `js/presence.js` | 학생 접속·이탈·붙여넣기 기록 |
+| `js/teacher.js` | 교사 로그인, 평가 제어, 대시보드 구독과 렌더링, 비밀번호 초기화 |
+| `js/detail.js` | 학생 상태 계산(makeRow)과 상세 창. 대시보드와 결과 보기가 함께 씀 |
+| `js/roster.js` | 학생 등록(범위·붙여넣기·한 명)과 삭제 |
+| `js/results.js` | 결과 스냅샷 회차별 보기, CSV 생성, 결과 삭제 |
 | `database.rules.json` | 보안 규칙 |
 | `README.md` | 교사용 설치·운영 안내 |
 

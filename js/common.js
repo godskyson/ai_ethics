@@ -39,6 +39,14 @@ export function fmtTime(ms) {
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
+// 타임스탬프(ms) → '2026-11-04 09:12:30'
+export function fmtDateTime(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${fmtTime(ms)}`;
+}
+
 // 지난 시간(ms) → '3분 20초'
 export function fmtDuration(ms) {
   const s = Math.max(0, Math.round(ms / 1000));

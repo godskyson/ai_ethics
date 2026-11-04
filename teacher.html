@@ -83,11 +83,62 @@
   </section>
 
   <section id="rosterView" role="tabpanel" aria-labelledby="tabRoster" hidden>
-    <div class="panel"><p class="muted">명단 관리는 준비 중이에요 (M6).</p></div>
+    <div class="roster-layout">
+      <div class="panel roster-add">
+        <h2>학생 추가</h2>
+        <p class="sub small">학번은 5자리(학년 1 + 반 2 + 번호 2)예요. 이름은 저장하지 않아요. 새로 추가한 학생의 비밀번호는 <b>0000</b>이에요.</p>
+
+        <div class="add-block">
+          <h3>반 단위로 한꺼번에</h3>
+          <div class="range-row">
+            <label>학년 <select id="rGrade"><option>1</option><option>2</option><option>3</option></select></label>
+            <label>반 <input type="number" id="rClass" min="1" max="19" value="1"></label>
+            <label>번호 <input type="number" id="rFrom" min="1" max="49" value="1"></label>
+            <span>~</span>
+            <label class="sr-label"><span class="sr-only">끝 번호</span><input type="number" id="rTo" min="1" max="49" value="30"></label>
+          </div>
+          <p class="small muted" id="rangePreview"></p>
+          <button type="button" class="btn-primary" id="rangeBtn">범위 추가</button>
+        </div>
+
+        <div class="add-block">
+          <h3>붙여넣기로 추가</h3>
+          <label class="field-label" for="pasteBox">학번 목록 (엑셀 열을 그대로 붙여넣어도 돼요)</label>
+          <textarea id="pasteBox" placeholder="10101&#10;10102&#10;10103"></textarea>
+          <div class="paste-preview" id="pastePreview"></div>
+          <button type="button" class="btn-primary" id="pasteBtn" disabled>목록 추가</button>
+        </div>
+
+        <div class="add-block">
+          <h3>한 명 추가</h3>
+          <div class="test-row">
+            <input type="text" id="oneSid" inputmode="numeric" maxlength="5" placeholder="예: 10101" aria-label="추가할 학번">
+            <button type="button" id="oneBtn">추가</button>
+          </div>
+        </div>
+        <div class="msg" id="rosterMsg" role="alert"></div>
+      </div>
+
+      <div class="panel roster-list">
+        <div class="list-head">
+          <h2>등록된 학생 <span class="muted" id="rosterCount"></span></h2>
+        </div>
+        <div id="rosterGroups"></div>
+      </div>
+    </div>
   </section>
 
   <section id="resultsView" role="tabpanel" aria-labelledby="tabResults" hidden>
-    <div class="panel"><p class="muted">결과 보기는 준비 중이에요 (M6).</p></div>
+    <div class="results-layout">
+      <div class="panel result-list">
+        <h2>평가 회차</h2>
+        <p class="sub small">평가를 종료할 때 저장된 결과예요.</p>
+        <ul class="exam-list" id="examList"></ul>
+      </div>
+      <div class="panel result-view" id="resultView">
+        <p class="muted">왼쪽에서 회차를 고르세요.</p>
+      </div>
+    </div>
   </section>
 </div>
 
