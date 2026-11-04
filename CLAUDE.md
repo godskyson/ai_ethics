@@ -6,6 +6,8 @@
 - 배포: GitHub Pages (`https://godskyson.github.io/ai_ethics/`)
 - 디자인·분류기 참고 원본: https://godskyson.github.io/infoclass/text-classifier.html
   (로컬 사본: `../text-classifier.html`. 참고만 하고 수정하지 않는다)
+- Firebase 프로젝트: `ai-ethics-3bb57` (수행평가 전용)
+- **상세 설계는 `spec.md`를 따른다.** 이 문서와 spec.md가 다르면 spec.md가 기준이고, 다른 점을 발견하면 두 문서를 함께 고친다.
 - 사용자: 학생(고등학생, 학교 크롬북/PC), 교사 1명
 - 모든 UI 문구, 주석, 커밋 메시지는 **한국어**로 쓴다.
 
@@ -57,7 +59,8 @@ README.md             교사용 사용 설명 (Firebase 설정 방법 포함)
       - 인공지능 판단(결과를 믿고 따를 때) 주의점
       - 각 항목 옆에 학생이 입력한 테스트 문장 3개와 결과를 보여 주어 근거로 쓰게 한다.
       - 항목마다 최소 글자 수를 둔다 (기본값 50자. 상수로 관리).
-   6. 제출 확인 → 제출 완료 화면. 제출한 뒤에는 수정할 수 없다 (교사가 허용하면 예외).
+   6. 제출 확인 → 제출 완료 화면. 평가가 종료되기 전까지는 학생이 `수정하기`로 다시 고치고 다시 제출할 수 있다.
+   - 제출용 테스트 문장 3개에는 내용 조건을 두지 않는다. 제한 시간 타이머도 두지 않는다.
 5. **평가 종료**: `exam/status`가 `ended`가 되면 입력을 막고 "평가가 종료되었습니다" 화면을 띄운다. 그 직전까지 입력한 내용은 이미 자동 저장되어 있어야 한다.
 
 ### 자동 저장과 이탈 감지
@@ -72,7 +75,7 @@ README.md             교사용 사용 설명 (Firebase 설정 방법 포함)
 ## 3. 교사 화면 (`teacher.html`)
 
 - **교사 로그인**: Firebase Auth 이메일/비밀번호 방식. 교사 계정 이메일은 `database.rules.json`에 하드코딩한다.
-- **명단 관리**: 반을 추가·삭제하고, 반마다 학번(번호)과 이름을 추가·삭제한다. 여러 명을 한 번에 붙여넣어 등록하는 기능을 둔다 (`학번,이름` 줄 단위 입력). 새로 등록한 학생의 비밀번호는 `0000`이다.
+- **명단 관리**: 학번을 추가·삭제한다. **학생 이름은 저장하지 않는다.** 반은 학번에서 계산한다(`20301` → 2-3). 여러 학번을 한 번에 붙여넣는 일괄 등록과, 학년·반·번호 범위로 한꺼번에 만드는 기능을 둔다. 새로 등록한 학생의 비밀번호는 `0000`이다.
 - **평가 제어**: `평가 시작` / `평가 종료` 버튼. 상태는 `ready → running → ended` 순서로 바뀐다. 다음 평가를 위해 초기화할 때는 확인 창을 띄운다. 종료하는 순간 전체 학생의 진행 상황을 `results/{examId}`에 스냅샷으로 복사해 보관한다.
 - **대시보드**: 반 필터를 두고, 학생마다 카드나 표의 한 행으로 아래 내용을 실시간으로 보여 준다.
   - 접속 상태 (온라인 / 오프라인), 현재 화면 상태 (집중 / 이탈)
@@ -93,15 +96,15 @@ exam/
   status: "ready" | "running" | "ended"
   examId: string            // 평가 회차 ID (시작할 때 생성)
   startedAt, endedAt: number (serverTimestamp)
-roster/{classId}/{studentId}: { name, classId }          // 교사만 쓴다
-pins/{studentId}: { hash, mustChange: bool }             // 아무도 읽을 수 없다 (규칙 참고)
-claims/{uid}: studentId                                  // 로그인에 성공한 익명 uid와 학번의 연결
+roster/{studentId}: { classId, addedAt }                 // 교사만 쓴다. 이름 없음
+pins/{studentId}: { hash, mustChange: bool }             // hash는 아무도 읽을 수 없다 (규칙 참고)
+claims/{uid}: { sid, hash, at }                          // 로그인에 성공한 익명 uid와 학번의 연결
 progress/{studentId}:
   step: number, updatedAt
   modelName, dataset: [{label, texts[]}]
   tests: [{text, top, probs:{label:prob}}] (3개)
   ethics: { privacy, bias, judgment }
-  submitted: bool, submittedAt
+  submitted: bool, submittedAt, submitCount
 presence/{studentId}: { online, state: "focused"|"away", awayCount, lastAwayAt, pasteCount, lastSeen }
 results/{examId}/{studentId}: progress와 presence를 합친 스냅샷 (종료 때 교사가 기록)
 ```
@@ -112,7 +115,7 @@ results/{examId}/{studentId}: progress와 presence를 합친 스냅샷 (종료 �
 
 - 비밀번호는 평문으로 저장하지 않는다. `SHA-256("ai_ethics:" + studentId + ":" + pin)`의 hex 값을 저장한다 (Web Crypto 사용).
 - `pins`는 `.read: false`로 둔다. 로그인은 `claims/{auth.uid}`에 학번을 쓰면서 함께 보낸 해시가 `pins/{studentId}/hash`와 같을 때만 쓰기가 허용되도록 **보안 규칙으로 검증**한다. 그래서 클라이언트가 해시를 읽어 비교하는 코드는 만들지 않는다.
-- `progress/{sid}`, `presence/{sid}`에는 `root.child('claims/' + auth.uid).val() === $sid`인 학생만 쓸 수 있다. `progress`는 `exam/status === 'running'`이고 `submitted !== true`일 때만 쓸 수 있다.
+- `progress/{sid}`, `presence/{sid}`에는 claim의 `sid`가 일치하고 claim의 `hash`가 현재 `pins/{sid}/hash`와 같은 학생만 쓸 수 있다 (비밀번호가 바뀌거나 초기화되면 기존 로그인은 자동으로 무효가 된다). `progress`는 `exam/status === 'running'`일 때만 쓸 수 있다. 규칙 전문은 spec.md §5.4에 있다.
 - 비밀번호 변경은 본인(claims 일치)만 할 수 있다. 초기화는 교사만 할 수 있다.
 - 한계: 4자리 비밀번호라서 무차별 대입에 약하다. 수업 안에서 쓰는 수준의 보호로 받아들이고, README에 이 한계를 적는다.
 
@@ -132,7 +135,7 @@ results/{examId}/{studentId}: progress와 presence를 합친 스냅샷 (종료 �
 
 ## 6. 작업 규칙
 
-- 개인정보: 실제 학생 이름이나 학번을 코드, 커밋, 예시 데이터에 넣지 않는다. 예시는 `10101 홍길동`처럼 가짜 값만 쓴다. 상위 폴더(`../1반` 등)의 학생 자료는 이 저장소에 복사하지 않는다.
+- 개인정보: 앱은 학생 이름을 수집하지 않는다. 실제 학번을 코드, 커밋, 예시 데이터에 넣지 않고, 예시는 `10101`처럼 가짜 값만 쓴다. 상위 폴더(`../1반` 등)의 학생 자료는 이 저장소에 복사하지 않는다.
 - Firebase 설정값(`firebase-config.js`)은 공개 웹 설정만 담는다. 서비스 계정 키, 교사 비밀번호 같은 비밀값은 저장소에 절대 넣지 않는다.
 - 교사 계정 이메일과 비밀번호는 사용자가 Firebase 콘솔에서 직접 만든다. Claude가 대신 계정을 만들거나 비밀번호를 입력하지 않는다.
 - 커밋과 푸시는 사용자가 요청할 때만 한다. 브랜치는 `main` 하나를 쓴다 (GitHub Pages가 배포하는 브랜치).
