@@ -39,18 +39,18 @@
         ".write": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val() && root.child('exam/status').val() === 'running'",
         "modelName": { ".validate": "newData.isString() && newData.val().length <= 30" },
         "dataset": {
-          ".validate": "newData.hasChildren() && newData.numChildren() <= 6",
+          ".validate": "newData.hasChildren()",
           "$i": {
+            ".validate": "$i.matches(/^[0-5]$/)",
             "label": { ".validate": "newData.isString() && newData.val().length <= 20" },
             "texts": {
-              ".validate": "newData.numChildren() <= 30",
-              "$j": { ".validate": "newData.isString() && newData.val().length <= 100" }
+              "$j": { ".validate": "$j.matches(/^([0-9]|[12][0-9])$/) && newData.isString() && newData.val().length <= 100" }
             }
           }
         },
         "tests": {
-          ".validate": "newData.numChildren() <= 3",
           "$i": {
+            ".validate": "$i.matches(/^[0-2]$/)",
             "text": { ".validate": "newData.isString() && newData.val().length <= 100" }
           }
         },

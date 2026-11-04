@@ -1,0 +1,9 @@
+{
+  "exam": { "status": "ready", "minChars": 50 },
+  "roster": {
+    "10101": { "classId": "1-1", "addedAt": 0 }
+  },
+  "pins": {
+    "10101": { "hash": "a82331886b3d7a3e30e12d296b798427ed0cd9c964c5e898252d7df6e6c289df", "mustChange": true }
+  }
+}

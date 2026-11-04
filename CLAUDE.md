@@ -143,7 +143,7 @@ results/{examId}/{studentId}: progress와 presence를 합친 스냅샷 (종료 �
 
 ## 7. 확인 방법
 
-- 로컬 미리보기: 저장소 폴더에서 `python -m http.server 8000`을 실행한 뒤 `http://localhost:8000/`(학생)과 `/teacher.html`(교사)을 연다. ES module이라서 `file://`로 열면 동작하지 않는다.
+- 로컬 미리보기: 저장소 폴더에서 `node tools/serve.mjs`를 실행한 뒤 (이 PC에는 Python이 없다. `.claude/launch.json`의 `ai-ethics` 설정과 같다) `http://localhost:8000/`(학생)과 `/teacher.html`(교사)을 연다. ES module이라서 `file://`로 열면 동작하지 않는다.
 - 기능을 바꾼 뒤에는 브라우저 창 두 개(교사 1개, 학생 1개)로 다음 시나리오를 확인한다.
   1. 교사가 학생 등록 → 학생이 `0000`으로 로그인 → 비밀번호 변경 강제 확인
   2. 대기 화면 → 교사가 평가 시작 → 학생 화면 자동 전환
