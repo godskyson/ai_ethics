@@ -5,6 +5,7 @@ import {
 } from './firebase.js';
 import { INITIAL_PIN, isValidSid, isValidPin, classOf, hashPin, showError, toast } from './common.js';
 import * as exam from './exam.js';
+import * as presence from './presence.js';
 
 const $ = id => document.getElementById(id);
 
@@ -205,9 +206,16 @@ async function startSession(sid) {
       else console.error(e);
     }
   }));
+
+  // 화면 이탈·붙여넣기 기록 (평가가 진행 중일 때만 횟수를 센다)
+  presence.start(sid, {
+    isCounting: () => state.examStatus === 'running',
+    onDenied: () => forceLogout('다시 로그인해 주세요.'),
+  });
 }
 
 function stopSession() {
+  presence.stop();
   while (unsubs.length) unsubs.pop()();
 }
 

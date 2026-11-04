@@ -279,7 +279,8 @@ update(ref(db), {
 - 저장 상태를 화면 구석에 작게 표시한다: "저장됨 · 09:12:30" 또는 "저장 중…" 또는 "연결 끊김 — 다시 연결되면 저장돼요".
 
 ### 6.4 이탈 감지
-- `document.visibilitychange`(hidden)나 `window.blur`가 생기면 `state:'away'`로 쓰고, `awayCount`를 1 늘리고(transaction), `lastAwayAt`을 기록한다.
+- `document.visibilitychange`(hidden)나 `window.blur`가 생기면 `state:'away'`로 쓰고, `awayCount`를 1 늘리고(`increment()` 사용. 값을 먼저 읽을 필요가 없다), `lastAwayAt`을 기록한다. 구현은 `js/presence.js`.
+- 횟수와 시간은 `exam/status`가 `running`일 때만 누적한다. 대기 화면에서는 `state`만 갱신한다.
 - `visible`이나 `focus`가 돌아오면 `state:'focused'`로 쓰고, 이탈해 있던 시간을 `awayMs`에 더한다.
 - blur와 visibilitychange가 함께 발생해도 한 번만 세도록 300ms 안의 중복 이벤트는 합친다.
 - 30초마다 `lastSeen`을 갱신해서 교사 화면이 "응답 없음"을 판단하는 데 쓴다.

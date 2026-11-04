@@ -19,6 +19,7 @@
     background: var(--accent); border: var(--line); box-shadow: var(--shadow-sm); animation: bob 2.4s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
   .wait .sub { margin-inline: auto; }
+  .wait-note { text-align: left; max-width: 46ch; margin: 0 auto 16px; font-size: .9375rem; }
   .dots { display: inline-flex; gap: 5px; vertical-align: middle; margin-left: 4px; }
   .dots i { width: 7px; height: 7px; background: var(--ink); animation: blink 1s infinite; }
   .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
@@ -144,6 +145,7 @@
       <div class="wait-icon" aria-hidden="true">⏳</div>
       <h2 id="tWait">평가 시작을 기다리고 있어요<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span></h2>
       <p class="sub">선생님이 평가를 시작하면 이 화면이 자동으로 바뀌어요. 새로고침하지 않아도 돼요.</p>
+      <p class="note wait-note">평가 중에 다른 탭이나 창으로 이동하거나 글을 붙여넣으면 그 기록이 선생님 화면에 표시돼요.</p>
       <p class="small muted" id="waitWho"></p>
     </section>
 
