@@ -60,11 +60,14 @@ export function predict(m, text) {
     .sort((a, b) => b.prob - a.prob);
 }
 
-// DB에 저장할 형태로 바꾼다: { text, top, probs: { 라벨: 0.823 } } (확률은 소수 셋째 자리까지)
+// DB에 저장할 형태로 바꾼다: { text, top, probs: [{ label, prob: 0.823 }, ...] } (확률은 소수 셋째 자리까지)
+// 클래스 이름에 Firebase 키로 쓸 수 없는 문자(. $ # [ ] /)가 들어갈 수 있어서 객체가 아닌 배열로 저장한다.
 export function toTestRecord(text, preds) {
-  const probs = {};
-  for (const p of preds) probs[p.label] = Math.round(p.prob * 1000) / 1000;
-  return { text, top: preds[0].label, probs };
+  return {
+    text,
+    top: preds[0].label,
+    probs: preds.map(p => ({ label: p.label, prob: Math.round(p.prob * 1000) / 1000 })),
+  };
 }
 
 // 판단 근거: 테스트 문장의 조각 중 클래스 사이 확률 차이가 큰 조각 (참고 원본의 도움말과 같은 계산)

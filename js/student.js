@@ -4,6 +4,7 @@ import {
   signInAnonymously, onAuthStateChanged, onConnection, isPermissionDenied,
 } from './firebase.js';
 import { INITIAL_PIN, isValidSid, isValidPin, classOf, hashPin, showError, toast } from './common.js';
+import * as exam from './exam.js';
 
 const $ = id => document.getElementById(id);
 
@@ -48,10 +49,22 @@ function route() {
   if (!state.sid) return show('login');
   if (!state.loaded.pin || !state.loaded.exam) return show('loading'); // 필요한 값이 다 오기 전에는 판단하지 않는다
   if (state.mustChange) return show('changePin');
-  if (state.examStatus === 'running') return show('exam');
+  if (state.examStatus === 'running') {
+    if (!exam.isLoaded()) {
+      show('loading');
+      exam.load(state.sid).then(route).catch(e => {
+        console.error(e);
+        toast('평가 내용을 불러오지 못했어요. 새로고침해 주세요.', 4000);
+      });
+      return;
+    }
+    return show(exam.isSubmitted() ? 'done' : 'exam');
+  }
   if (state.examStatus === 'ended') return show('ended');
   return show('waiting');
 }
+
+exam.init({ onChange: () => route() });
 
 function renderWho() {
   const on = !!state.sid;
@@ -172,8 +185,11 @@ async function startSession(sid) {
 
   // 평가 상태
   unsubs.push(onValue(ref(db, 'exam/status'), snap => {
+    const prev = state.examStatus;
     state.examStatus = snap.val() || 'ready';
     state.loaded.exam = true;
+    if (prev === 'running' && state.examStatus !== 'running') exam.flush(); // 종료 직전 입력을 마지막으로 저장 시도
+    if (state.examStatus === 'ready') exam.unload(); // 새 평가 준비: 진행 데이터가 지워지므로 다음에 새로 불러온다
     route();
   }, err => console.error(err)));
 
@@ -202,6 +218,7 @@ async function forceLogout(message) {
 
 async function logout() {
   const sid = state.sid;
+  exam.unload();
   stopSession();
   if (sid) {
     const pRef = ref(db, `presence/${sid}`);

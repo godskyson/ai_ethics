@@ -24,6 +24,51 @@
   .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
   @keyframes blink { 50% { opacity: .2; } }
   .loading { text-align: center; color: var(--muted); padding: 40px 0; }
+
+  /* ----- 평가 ----- */
+  .screen.bare { background: none; border: none; box-shadow: none; padding: 0; }
+  .screen.bare .stepper { margin-top: 0; }
+  .save-line { margin: -12px 0 12px; min-height: 1.4em; text-align: right; font-size: .8125rem; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .save-line.err { color: #b42318; font-weight: 600; }
+  .block { padding: 20px 0 4px; border-top: 1.5px dashed var(--ink); margin-top: 8px; }
+  .block:first-of-type { border-top: none; padding-top: 4px; }
+  .tests { display: grid; gap: 14px; }
+  .test-card { border: var(--line); background: var(--surface); }
+  .test-card-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px;
+    border-bottom: var(--line); background: var(--field); font-weight: 600; font-size: .9375rem; }
+  .test-card-body { padding: 12px; }
+  .test-card .result { margin-top: 12px; padding: 12px 14px 8px; }
+  .test-card .result-top { margin-bottom: 8px; }
+  .test-card .result-top b { font-size: 1.15rem; }
+  .stale { color: #b42318; font-size: .8125rem; font-weight: 500; }
+  .test-summary { display: grid; gap: 8px; margin-bottom: 22px; }
+  .sum-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    border: 1.5px solid var(--ink); background: var(--field); padding: 8px 12px; font-size: .9375rem; }
+  .sum-row .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sum-row .t { overflow-wrap: anywhere; }
+  .sum-row .r { white-space: nowrap; }
+  .sum-row .r b { background: var(--cc); border: 1.5px solid var(--ink); padding: 0 6px; font-weight: 600; }
+  .ethics { display: grid; gap: 20px; }
+  .eth-item { border: var(--line); box-shadow: var(--shadow-sm); background: var(--surface); }
+  .eth-head { padding: 10px 12px; border-bottom: var(--line); background: var(--accent); }
+  .eth-head h3 { margin: 0; font-size: 1rem; }
+  .eth-head p { margin: 4px 0 0; font-size: .875rem; color: var(--ink); }
+  .eth-item textarea { border: none; background: var(--surface); min-height: 130px; }
+  .eth-item textarea:focus-visible { box-shadow: inset 0 0 0 2px var(--ink); transform: none; }
+  .done-head { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; }
+  .done-head .sub { margin: 0; }
+  .done-mark { width: 56px; height: 56px; flex: none; display: grid; place-items: center; font-size: 1.8rem; font-weight: 700;
+    background: var(--ok); border: var(--line); box-shadow: var(--shadow-sm); }
+  .view-sec { margin-top: 22px; }
+  .view-sec h3 { margin-bottom: 8px; }
+  .view-text { border: 1.5px solid var(--ink); background: var(--field); padding: 10px 12px; white-space: pre-wrap;
+    overflow-wrap: anywhere; margin: 0; }
+  @media (max-width: 520px) {
+    .stepper .item { width: 50px; }
+    .sum-row { grid-template-columns: auto minmax(0, 1fr); }
+    .sum-row .r { grid-column: 2; }
+  }
 </style>
 </head>
 <body>
@@ -102,10 +147,113 @@
       <p class="small muted" id="waitWho"></p>
     </section>
 
-    <!-- 평가 (M3에서 구현) -->
-    <section class="screen" data-screen="exam" aria-labelledby="tExam">
-      <h2 id="tExam">평가가 시작되었어요</h2>
-      <p class="sub">평가 화면은 준비 중이에요.</p>
+    <!-- 평가 -->
+    <section class="screen bare" data-screen="exam" aria-label="평가">
+      <ol class="stepper" id="stepper" aria-label="진행 단계">
+        <li class="item"><div class="dot">1</div><div class="label">모델 이름</div></li>
+        <li class="bar" aria-hidden="true"></li>
+        <li class="item"><div class="dot">2</div><div class="label">데이터 입력</div></li>
+        <li class="bar" aria-hidden="true"></li>
+        <li class="item"><div class="dot">3</div><div class="label">학습</div></li>
+        <li class="bar" aria-hidden="true"></li>
+        <li class="item"><div class="dot">4</div><div class="label">테스트</div></li>
+        <li class="bar" aria-hidden="true"></li>
+        <li class="item"><div class="dot">5</div><div class="label">윤리 서술</div></li>
+      </ol>
+      <p class="save-line" id="saveState" aria-live="polite"></p>
+
+      <!-- 1. 모델 이름 -->
+      <section class="screen" data-step="1" aria-labelledby="s1">
+        <h2 id="s1">모델 이름 정하기</h2>
+        <p class="sub">무엇을 분류하는 모델인지 알 수 있게 지어 주세요.</p>
+        <label class="field-label" for="modelName">모델 이름</label>
+        <input type="text" id="modelName" class="big-input" placeholder="예: 감정 분류기" maxlength="30" autocomplete="off">
+        <div class="msg" id="nameMsg" role="alert"></div>
+        <div class="nav">
+          <span></span>
+          <button type="button" class="btn-primary" id="toData">다음: 데이터 입력</button>
+        </div>
+      </section>
+
+      <!-- 2. 데이터 입력 -->
+      <section class="screen" data-step="2" aria-labelledby="s2">
+        <h2 id="s2">학습 데이터 입력하기</h2>
+        <p class="sub">클래스(분류할 종류)를 <strong>2개 이상</strong> 만들고, 클래스마다 예시 문장을 <strong>쉼표(,)로 구분해 5개 이상</strong> 써 주세요.</p>
+        <div class="class-list" id="classes"></div>
+        <button type="button" class="btn-add" id="addClass">+ 클래스 추가</button>
+        <div class="msg" id="trainMsg" role="alert"></div>
+        <div class="nav">
+          <button type="button" class="btn-text" id="backTo1">← 이전</button>
+          <button type="button" class="btn-primary" id="trainBtn">학습시키기</button>
+        </div>
+      </section>
+
+      <!-- 3. 학습 -->
+      <section class="screen" data-step="3" aria-labelledby="trainTitle">
+        <div class="train-head">
+          <h2 id="trainTitle">학습하는 중</h2>
+          <span class="train-pct" id="trainPct">0%</span>
+        </div>
+        <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+        <p class="status" id="trainStatus" aria-live="polite"></p>
+        <div class="bins" id="bins"></div>
+      </section>
+
+      <!-- 4. 테스트 -->
+      <section class="screen" data-step="4" aria-labelledby="s4">
+        <h2 id="s4">모델 테스트하기</h2>
+        <p class="sub"><span class="model-name" id="modelTag"></span> 모델이 문장을 어떻게 분류하는지 확인해 보세요.</p>
+
+        <div class="block">
+          <h3>자유롭게 시험해 보기 <span class="small muted">(저장되지 않아요)</span></h3>
+          <div class="test-row">
+            <input type="text" id="freeInput" placeholder="분류해 볼 문장" maxlength="100" autocomplete="off" aria-label="시험해 볼 문장">
+            <button type="button" id="freeBtn">분류하기</button>
+          </div>
+          <div class="result" id="freeResult"></div>
+        </div>
+
+        <div class="block">
+          <h3>제출용 테스트 문장 3개</h3>
+          <p class="sub">윤리 서술의 근거로 쓰고 싶은 문장을 자유롭게 넣고 분류해 보세요. 세 문장 모두 분류해야 다음으로 넘어갈 수 있어요.</p>
+          <div class="tests" id="tests"></div>
+        </div>
+        <div class="msg" id="testMsg" role="alert"></div>
+        <div class="nav">
+          <button type="button" class="btn-text" id="backTo2">← 데이터 고치기</button>
+          <button type="button" class="btn-primary" id="toEthics">다음: 윤리 서술</button>
+        </div>
+      </section>
+
+      <!-- 5. 윤리 서술 -->
+      <section class="screen" data-step="5" aria-labelledby="s5">
+        <h2 id="s5">인공지능 윤리 주의점 쓰기</h2>
+        <p class="sub">아래 테스트 결과를 근거로, 인공지능을 만들고 쓸 때 주의할 점을 항목마다 <strong id="minCharsTxt">50</strong>자 이상 써 주세요.</p>
+        <div class="test-summary" id="testSummary"></div>
+        <div class="ethics" id="ethics"></div>
+        <div class="msg" id="ethicsMsg" role="alert"></div>
+        <div class="nav">
+          <button type="button" class="btn-text" id="backTo4">← 테스트로</button>
+          <button type="button" class="btn-primary" id="submitBtn">제출하기</button>
+        </div>
+      </section>
+    </section>
+
+    <!-- 제출 완료 -->
+    <section class="screen" data-screen="done" aria-labelledby="tDone">
+      <div class="done-head">
+        <span class="done-mark" aria-hidden="true">✓</span>
+        <div>
+          <h2 id="tDone">제출했어요</h2>
+          <p class="sub" id="doneWhen"></p>
+        </div>
+      </div>
+      <p class="note">평가가 끝나기 전까지는 <b>수정하기</b>로 다시 고칠 수 있어요. 고친 뒤에는 다시 제출해야 해요.</p>
+      <div id="doneView"></div>
+      <div class="nav">
+        <span></span>
+        <button type="button" id="editBtn">수정하기</button>
+      </div>
     </section>
 
     <!-- 종료 -->

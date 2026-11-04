@@ -102,7 +102,8 @@
       "modelName": "감정 분류기",
       "dataset": [ { "label": "긍정", "texts": ["...", "..."] } ],
       "trainedAt": 0,
-      "tests": [ { "text": "...", "top": "긍정", "probs": { "긍정": 0.82, "부정": 0.18 } } ],
+      "tests": [ { "text": "...", "top": "긍정", "probs": [ { "label": "긍정", "prob": 0.82 }, { "label": "부정", "prob": 0.18 } ] } ],
+      // probs는 배열이다: 클래스 이름에 Firebase 키 금지 문자(. $ # [ ] /)가 들어갈 수 있어서 (M3에서 변경)
       "ethics": { "privacy": "", "bias": "", "judgment": "" },
       "submitted": false, "submittedAt": 0,
       "submitCount": 0,         // 제출 횟수 (수정 후 다시 제출하면 늘어난다)

@@ -34,7 +34,9 @@ export function makeExamId(date = new Date()) {
 // 타임스탬프(ms) → '09:12:30'
 export function fmtTime(ms) {
   if (!ms) return '-';
-  return new Date(ms).toLocaleTimeString('ko-KR', { hour12: false });
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 // 지난 시간(ms) → '3분 20초'
