@@ -1,0 +1,94 @@
+/* 교사 화면 전용 레이아웃 (넓은 화면 기준). 색과 테두리는 style.css의 토큰을 쓴다. */
+.login-view { max-width: 440px; }
+.login-view .panel { margin-top: 28px; }
+
+.app { max-width: 1400px; margin: 0 auto; padding: 28px 24px 64px; }
+.t-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.t-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.t-title h1 { display: inline-block; margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em;
+  background: var(--accent); border: var(--line); box-shadow: var(--shadow); padding: 2px 12px; transform: rotate(-1deg); }
+.t-title .badge { font-size: .9375rem; padding: 2px 10px; }
+.t-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+/* ----- 요약 ----- */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 24px 0 18px; }
+.stat { border: var(--line); background: var(--surface); box-shadow: var(--shadow-sm); padding: 10px 14px; }
+.stat .k { font-size: .8125rem; color: var(--muted); }
+.stat .v { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat.alert { background: var(--danger-bg); }
+.stat.wide { grid-column: span 2; }
+.dist { display: flex; height: 26px; border: 1.5px solid var(--ink); margin-top: 6px; background: var(--field); overflow: hidden; }
+.dist span { display: grid; place-items: center; font-size: .75rem; font-weight: 600; border-right: 1.5px solid var(--ink);
+  min-width: 0; overflow: hidden; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dist span:last-child { border-right: none; }
+.dist-legend { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; font-size: .75rem; color: var(--muted); }
+.dist-legend i { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--ink); margin-right: 4px; vertical-align: -1px; }
+.s0 { background: var(--surface); } .s1 { background: var(--c1); } .s2 { background: var(--c3); } .s3 { background: var(--c5); }
+.s4 { background: var(--c4); } .s5 { background: var(--accent); } .s6 { background: var(--ok); }
+
+/* ----- 탭 ----- */
+.tabs { display: flex; gap: 8px; margin: 8px 0 16px; }
+.tabs button { font-weight: 500; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); font-weight: 600; }
+
+/* ----- 도구 막대 ----- */
+.toolbar { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.tool { display: flex; align-items: center; gap: 8px; font-size: .9375rem; font-weight: 500; }
+.tool select { width: auto; padding: 6px 10px; }
+.tool.check input { width: 18px; height: 18px; accent-color: var(--ink); }
+
+/* ----- 학생 카드 ----- */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.card { border: var(--line); background: var(--surface); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.card.off { background: #f1f2f3; }
+.card.off .card-top { background: var(--offline); }
+.card.away { border-color: #c4161c; box-shadow: 3px 3px 0 #c4161c; }
+.card.away .card-top { background: var(--danger); }
+.card.stale .card-top { background: var(--warn); }
+.card.done .card-top { background: var(--ok); }
+.card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px;
+  border-bottom: var(--line); background: var(--field); }
+.card-top .sid { font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.card-top .cls { font-size: .8125rem; color: var(--ink); margin-left: 6px; font-weight: 500; }
+.conn { display: inline-flex; align-items: center; gap: 6px; font-size: .8125rem; font-weight: 600; }
+.conn i { width: 10px; height: 10px; border: 1.5px solid var(--ink); border-radius: 50%; background: var(--offline); }
+.conn.on i { background: #2fb344; }
+.conn.away i { background: #c4161c; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+.card-body { padding: 10px 12px; display: grid; gap: 8px; flex: 1; }
+.steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+.steps i { height: 9px; border: 1.5px solid var(--ink); background: var(--surface); }
+.steps i.on { background: var(--ink); }
+.steps.done i.on { background: #2fb344; }
+.step-label { font-weight: 600; font-size: .9375rem; display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.step-label .badge { font-size: .75rem; }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: .8125rem; color: var(--muted); }
+.metrics b { display: block; font-size: 1.05rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.metrics .hot b { color: #c4161c; }
+.seen { font-size: .75rem; color: var(--muted); }
+.card-foot { display: flex; gap: 6px; padding: 8px 10px; border-top: 1.5px dashed var(--ink); }
+.card-foot button { flex: 1; padding: 5px 8px; font-size: .875rem; box-shadow: none; }
+.empty-note { border: 1.5px dashed var(--ink); background: var(--field); padding: 18px; }
+
+/* ----- 상세 ----- */
+.modal.detail { max-width: 760px; max-height: 88dvh; }
+.modal.detail[open] { display: flex; flex-direction: column; }
+.detail-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.detail-body { overflow-y: auto; padding-bottom: 20px; }
+.d-sec { margin: 0 0 18px; }
+.d-sec h3 { margin: 0 0 8px; font-size: 1rem; }
+.d-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.d-grid div { border: 1.5px solid var(--ink); padding: 6px 10px; background: var(--field); font-size: .875rem; }
+.d-grid b { display: block; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.d-class { border: 1.5px solid var(--ink); margin-bottom: 8px; }
+.d-class h4 { margin: 0; padding: 4px 10px; background: var(--cc); border-bottom: 1.5px solid var(--ink); font-size: .9375rem; }
+.d-class p { margin: 0; padding: 6px 10px; font-size: .875rem; overflow-wrap: anywhere; }
+.d-test { border: 1.5px solid var(--ink); padding: 8px 10px; margin-bottom: 8px; font-size: .9375rem; }
+.d-test .probs { color: var(--muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.d-text { border: 1.5px solid var(--ink); background: var(--field); padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.d-text.empty { color: var(--muted); }
+
+@media (max-width: 720px) {
+  .app { padding: 20px 16px 48px; }
+  .stat.wide { grid-column: 1 / -1; }
+}

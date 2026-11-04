@@ -191,6 +191,7 @@ async function startSession(sid) {
     state.loaded.exam = true;
     if (prev === 'running' && state.examStatus !== 'running') exam.flush(); // 종료 직전 입력을 마지막으로 저장 시도
     if (state.examStatus === 'ready') exam.unload(); // 새 평가 준비: 진행 데이터가 지워지므로 다음에 새로 불러온다
+    if (prev && prev !== state.examStatus) presence.ping(); // 교사가 접속 기록을 지웠을 수 있으므로 바로 다시 알린다
     route();
   }, err => console.error(err)));
 

@@ -25,10 +25,10 @@ export async function hashPin(sid, pin) {
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 평가 회차 ID: YYYYMMDD-HHmm
+// 평가 회차 ID: YYYYMMDD-HHmmss (같은 분에 종료·재시작해도 겹치지 않게 초까지 쓴다)
 export function makeExamId(date = new Date()) {
   const p = n => String(n).padStart(2, '0');
-  return `${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}`;
+  return `${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}${p(date.getSeconds())}`;
 }
 
 // 타임스탬프(ms) → '09:12:30'

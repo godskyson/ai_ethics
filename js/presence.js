@@ -59,6 +59,11 @@ function onPaste(e) {
   write({ pasteCount: increment(1), lastPasteAt: serverTimestamp() });
 }
 
+// 지금 상태를 바로 다시 보낸다. 교사가 '새 평가 준비'로 접속 기록을 지운 직후에도 곧바로 표시되게 한다.
+export function ping() {
+  write({ online: true, state: away ? 'away' : 'focused' });
+}
+
 export function start(studentId, opts = {}) {
   stop();
   sid = studentId;
