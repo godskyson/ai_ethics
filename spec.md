@@ -164,6 +164,13 @@ update(ref(db), {
 
 ### 5.4 보안 규칙 초안 (`database.rules.json`)
 
+> **실제 규칙은 저장소의 `database.rules.json`이 기준이다.** M1에서 아래 초안을 다음과 같이 고쳤다.
+> - 교사 이메일 `king03603@gmail.com`을 넣었다.
+> - `pins/$sid`: 학생은 삭제할 수 없다(`newData.exists()`). `roster` 존재 확인은 `newData` 기준으로 바꿨다. 교사가 학생을 등록할 때 roster와 pins를 한 번에 쓰기 때문이다.
+> - `roster/$sid`: 학번 형식을 정규식으로 검사한다.
+> - `presence/$sid`: 본인이 읽을 수 있게 했다. `awayCount` transaction은 값을 먼저 읽어야 하기 때문이다.
+> - `progress/$sid`: 모델 이름, 데이터셋, 테스트, 윤리 서술의 길이와 개수를 `.validate`로 검사한다.
+
 ```jsonc
 {
   "rules": {
