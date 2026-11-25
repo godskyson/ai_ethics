@@ -36,7 +36,7 @@
       ".write": "auth != null && auth.token.email === 'king03603@gmail.com'",
       "$sid": {
         ".read": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid",
-        ".write": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val() && root.child('exam/status').val() === 'running'",
+        ".write": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val() && root.child('exam/classes/' + root.child('roster/' + $sid + '/classId').val() + '/status').val() === 'running'",
         "modelName": { ".validate": "newData.isString() && newData.val().length <= 30" },
         "dataset": {
           ".validate": "newData.hasChildren()",

@@ -47,7 +47,7 @@ README.md             교사용 사용 설명 (Firebase 설정 방법 포함)
    - 초기 비밀번호는 `0000`이다.
 2. **비밀번호 변경 (첫 로그인 때 필수)**: 비밀번호가 `0000`이거나 교사가 초기화한 상태면, 새 4자리 비밀번호를 두 번 입력해야 다음으로 넘어간다. `0000`은 새 비밀번호로 쓸 수 없다.
    - 안내 문구에 다음 내용을 꼭 넣는다: "새 비밀번호를 꼭 기억하세요. 잊어버리면 선생님께 초기화를 요청하세요."
-3. **대기 화면**: 교사가 평가를 시작하기 전(`exam/status` 값이 `ready`)에는 "선생님이 평가를 시작할 때까지 기다려 주세요" 화면만 보여 준다. 상태가 바뀌면 새로고침 없이 바로 전환한다.
+3. **대기 화면**: 교사가 **내 학급의** 평가를 시작하기 전(`exam/classes/{학급}/status` 값이 `ready`)에는 "선생님이 평가를 시작할 때까지 기다려 주세요" 화면만 보여 준다. 상태가 바뀌면 새로고침 없이 바로 전환한다.
 4. **평가 단계**: 참고 원본과 같은 스텝퍼 UI를 쓴다.
    1. 모델 이름 정하기
    2. 학습 데이터 입력하기 (클래스 2개 이상, 클래스마다 문장 5개 이상)
@@ -61,7 +61,7 @@ README.md             교사용 사용 설명 (Firebase 설정 방법 포함)
       - 항목마다 최소 글자 수를 둔다 (기본값 50자. 상수로 관리).
    6. 제출 확인 → 제출 완료 화면. 평가가 종료되기 전까지는 학생이 `수정하기`로 다시 고치고 다시 제출할 수 있다.
    - 제출용 테스트 문장 3개에는 내용 조건을 두지 않는다. 제한 시간 타이머도 두지 않는다.
-5. **평가 종료**: `exam/status`가 `ended`가 되면 입력을 막고 "평가가 종료되었습니다" 화면을 띄운다. 그 직전까지 입력한 내용은 이미 자동 저장되어 있어야 한다.
+5. **평가 종료**: 내 학급의 상태가 `ended`가 되면 입력을 막고 "평가가 종료되었습니다" 화면을 띄운다. 그 직전까지 입력한 내용은 이미 자동 저장되어 있어야 한다.
 
 ### 자동 저장과 이탈 감지
 
@@ -76,7 +76,7 @@ README.md             교사용 사용 설명 (Firebase 설정 방법 포함)
 
 - **교사 로그인**: Firebase Auth 이메일/비밀번호 방식. 교사 계정 이메일은 `database.rules.json`에 하드코딩한다.
 - **명단 관리**: 학번을 추가·삭제한다. **학생 이름은 저장하지 않는다.** 반은 학번에서 계산한다(`20301` → 2-3). 여러 학번을 한 번에 붙여넣는 일괄 등록과, 학년·반·번호 범위로 한꺼번에 만드는 기능을 둔다. 새로 등록한 학생의 비밀번호는 `0000`이다.
-- **평가 제어**: `평가 시작` / `평가 종료` 버튼. 상태는 `ready → running → ended` 순서로 바뀐다. 다음 평가를 위해 초기화할 때는 확인 창을 띄운다. 종료하는 순간 전체 학생의 진행 상황을 `results/{examId}`에 스냅샷으로 복사해 보관한다.
+- **평가 제어 (학급별)**: 학급마다 평가 시간이 다르므로 교사가 **평가 학급을 고른 뒤** `평가 시작` / `평가 종료` / `다시 평가 준비`를 누른다. 버튼은 고른 학급에만 적용되고, 다른 학급 학생은 대기 화면에 그대로 있다. 상태는 학급마다 `ready → running → ended` 순서로 바뀐다. 종료하는 순간 그 학급 학생의 진행 상황을 `results/{학급}_{examId}`에 스냅샷으로 복사해 보관한다.
 - **대시보드**: 반 필터를 두고, 학생마다 카드나 표의 한 행으로 아래 내용을 실시간으로 보여 준다.
   - 접속 상태 (온라인 / 오프라인), 현재 화면 상태 (집중 / 이탈)
   - 현재 단계 (로그인 전 · 대기 · 1~6단계 · 제출 완료)
@@ -94,7 +94,8 @@ README.md             교사용 사용 설명 (Firebase 설정 방법 포함)
 ```
 exam/
   status: "ready" | "running" | "ended"
-  examId: string            // 평가 회차 ID (시작할 때 생성)
+  classes/{classId}: { status, examId, startedAt, endedAt, resultId }  // 학급별 평가 상태
+  minChars: number
   startedAt, endedAt: number (serverTimestamp)
 roster/{studentId}: { classId, addedAt }                 // 교사만 쓴다. 이름 없음
 pins/{studentId}: { hash, mustChange: bool }             // hash는 아무도 읽을 수 없다 (규칙 참고)
@@ -106,7 +107,7 @@ progress/{studentId}:
   ethics: { privacy, bias, judgment }
   submitted: bool, submittedAt, submitCount
 presence/{studentId}: { online, state: "focused"|"away", awayCount, lastAwayAt, pasteCount, lastSeen }
-results/{examId}/{studentId}: progress와 presence를 합친 스냅샷 (종료 때 교사가 기록)
+results/{classId}_{examId}: { meta: {classId, examId, ...}, students/{studentId}: progress·presence 스냅샷 } (종료 때 교사가 기록)
 ```
 
 ### 학생 인증 방식 (중요)
@@ -115,7 +116,7 @@ results/{examId}/{studentId}: progress와 presence를 합친 스냅샷 (종료 �
 
 - 비밀번호는 평문으로 저장하지 않는다. `SHA-256("ai_ethics:" + studentId + ":" + pin)`의 hex 값을 저장한다 (Web Crypto 사용).
 - `pins`는 `.read: false`로 둔다. 로그인은 `claims/{auth.uid}`에 학번을 쓰면서 함께 보낸 해시가 `pins/{studentId}/hash`와 같을 때만 쓰기가 허용되도록 **보안 규칙으로 검증**한다. 그래서 클라이언트가 해시를 읽어 비교하는 코드는 만들지 않는다.
-- `progress/{sid}`, `presence/{sid}`에는 claim의 `sid`가 일치하고 claim의 `hash`가 현재 `pins/{sid}/hash`와 같은 학생만 쓸 수 있다 (비밀번호가 바뀌거나 초기화되면 기존 로그인은 자동으로 무효가 된다). `progress`는 `exam/status === 'running'`일 때만 쓸 수 있다. 규칙 전문은 spec.md §5.4에 있다.
+- `progress/{sid}`, `presence/{sid}`에는 claim의 `sid`가 일치하고 claim의 `hash`가 현재 `pins/{sid}/hash`와 같은 학생만 쓸 수 있다 (비밀번호가 바뀌거나 초기화되면 기존 로그인은 자동으로 무효가 된다). `progress`는 **그 학생 학급의** `exam/classes/{classId}/status === 'running'`일 때만 쓸 수 있다 (학급은 `roster/{sid}/classId`로 찾는다). 규칙 전문은 spec.md §5.4에 있다.
 - 비밀번호 변경은 본인(claims 일치)만 할 수 있다. 초기화는 교사만 할 수 있다.
 - 한계: 4자리 비밀번호라서 무차별 대입에 약하다. 수업 안에서 쓰는 수준의 보호로 받아들이고, README에 이 한계를 적는다.
 
@@ -146,10 +147,10 @@ results/{examId}/{studentId}: progress와 presence를 합친 스냅샷 (종료 �
 - 로컬 미리보기: 저장소 폴더에서 `node tools/serve.mjs`를 실행한 뒤 (이 PC에는 Python이 없다. `.claude/launch.json`의 `ai-ethics` 설정과 같다) `http://localhost:8000/`(학생)과 `/teacher.html`(교사)을 연다. ES module이라서 `file://`로 열면 동작하지 않는다.
 - 기능을 바꾼 뒤에는 브라우저 창 두 개(교사 1개, 학생 1개)로 다음 시나리오를 확인한다.
   1. 교사가 학생 등록 → 학생이 `0000`으로 로그인 → 비밀번호 변경 강제 확인
-  2. 대기 화면 → 교사가 평가 시작 → 학생 화면 자동 전환
+  2. 대기 화면 → 교사가 한 학급만 평가 시작 → 그 학급 학생만 자동 전환, 다른 학급은 대기·저장 거부
   3. 학생이 다른 탭으로 이동 → 교사 대시보드에 이탈 표시와 횟수 증가
   4. 1~6단계 진행 → 새로고침 → 이어서 하기 → 제출
   5. 교사가 비밀번호 초기화 → 학생이 `0000`으로 다시 로그인
-  6. 교사가 평가 종료 → 학생 입력 차단 → 결과 스냅샷과 CSV 확인
+  6. 교사가 한 학급만 평가 종료 → 그 학급만 입력 차단, 다른 학급은 계속 진행 → 결과에 그 학급 학생만 있는지와 CSV 확인
 - 분류기는 참고 원본과 같은 입력에 같은 확률을 내는지 확인한다.
 - 보안 규칙은 Firebase 콘솔의 Rules Playground로 다음을 확인한다: 다른 학생의 `progress`에 쓰기 거부, `pins` 읽기 거부, 평가가 진행 중이 아닐 때 쓰기 거부.

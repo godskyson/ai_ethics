@@ -189,7 +189,8 @@ async function startSession(sid) {
   }));
 
   // 평가 상태
-  unsubs.push(onValue(ref(db, 'exam/status'), snap => {
+  // 평가는 학급마다 따로 시작·종료된다 → 내 학급의 상태만 본다
+  unsubs.push(onValue(ref(db, `exam/classes/${classOf(sid)}/status`), snap => {
     const prev = state.examStatus;
     state.examStatus = snap.val() || 'ready';
     state.loaded.exam = true;

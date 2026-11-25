@@ -85,28 +85,75 @@ function stopDashboard() {
 }
 
 // ----- 학생 한 명의 상태 계산 -----
+const clsOf = sid => (db$.roster[sid] && db$.roster[sid].classId) || classOf(sid);
+const sortClass = (a, b) => a.localeCompare(b, 'ko', { numeric: true });
+
 function studentRows() {
   const now = serverNow();
   return Object.keys(db$.roster).sort().map(sid =>
-    makeRow(sid, db$.roster[sid] && db$.roster[sid].classId, db$.progress[sid], db$.presence[sid], now));
+    makeRow(sid, clsOf(sid), db$.progress[sid], db$.presence[sid], now));
+}
+
+// ----- 학급 -----
+// 평가 상태는 학급마다 따로 있다: exam/classes/{학급} = { status, examId, startedAt, endedAt }
+const STATUS_TEXT = { ready: '대기', running: '진행 중', ended: '종료' };
+const CLASS_KEY = 'ai_ethics.teacher.class';
+let selClass = '';
+try { selClass = localStorage.getItem(CLASS_KEY) || ''; } catch { /* 저장소를 못 쓰면 전체 보기 */ }
+
+function classList() { return [...new Set(Object.keys(db$.roster).map(clsOf))].sort(sortClass); }
+function classState(cls) { return (db$.exam.classes && db$.exam.classes[cls]) || { status: 'ready' }; }
+
+function selectClass(cls) {
+  selClass = cls;
+  try { localStorage.setItem(CLASS_KEY, cls); } catch { /* 무시 */ }
+  render();
 }
 
 // ----- 렌더링 -----
 function render() {
-  renderHeader();
-  const rows = studentRows();
+  renderClassBar();
+  const all = studentRows();
+  const rows = selClass ? all.filter(r => r.cls === selClass) : all;
   renderSummary(rows);
-  renderClassFilter(rows);
-  renderGrid(rows);
+  renderGrid(rows, all.length);
   if (isDetailOpen()) refreshDetail(); // 열려 있는 상세 창도 실시간으로 갱신
   roster.render(db$.roster, db$.presence);
 }
 
-function renderHeader() {
-  const ex = db$.exam || {};
-  const status = ex.status || 'ready';
+function renderClassBar() {
+  const classes = classList();
+  if (selClass && !classes.includes(selClass)) selClass = '';
+
+  // 학급 선택 상자 (명단이 바뀔 때만 다시 만든다)
+  const sel = $('classSel');
+  const key = classes.join('|');
+  if (sel.dataset.key !== key) {
+    sel.innerHTML = '<option value="">전체 보기</option>' + classes.map(c => `<option value="${c}">${c}반</option>`).join('');
+    sel.dataset.key = key;
+  }
+  sel.value = selClass;
+
+  // 학급별 상태 칩: 진행 중이거나 종료된 학급이 한눈에 보이게
+  $('classChips').innerHTML = classes.length > 1 ? classes.map(c => {
+    const st = classState(c).status || 'ready';
+    return `<button type="button" class="cchip ${st} ${c === selClass ? 'on' : ''}" data-cls="${c}"><b>${c}반</b>${STATUS_TEXT[st] || st}</button>`;
+  }).join('') : '';
+
   const badge = $('statusBadge');
-  badge.textContent = { ready: '대기', running: '진행 중', ended: '종료' }[status] || status;
+  if (!selClass) {
+    badge.hidden = true;
+    const running = classes.filter(c => classState(c).status === 'running');
+    $('examMeta').textContent = running.length
+      ? `진행 중: ${running.map(c => c + '반').join(', ')} · 평가를 시작·종료하려면 학급을 고르세요`
+      : '평가를 시작하려면 학급을 고르세요';
+    for (const id of ['startBtn', 'endBtn', 'resetExamBtn']) $(id).disabled = true;
+    return;
+  }
+  const ex = classState(selClass);
+  const status = ex.status || 'ready';
+  badge.hidden = false;
+  badge.textContent = STATUS_TEXT[status] || status;
   badge.className = 'badge ' + ({ ready: '', running: 'accent', ended: 'ink' }[status] || '');
   let meta = ex.examId ? `회차 ${ex.examId}` : '';
   if (status === 'running' && ex.startedAt) meta += ` · 경과 ${fmtDuration(serverNow() - ex.startedAt)}`;
@@ -116,6 +163,12 @@ function renderHeader() {
   $('endBtn').disabled = status !== 'running';
   $('resetExamBtn').disabled = status !== 'ended';
 }
+
+$('classSel').addEventListener('change', e => selectClass(e.target.value));
+$('classChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-cls]');
+  if (b) selectClass(b.dataset.cls);
+});
 
 function renderSummary(rows) {
   const total = rows.length;
@@ -138,27 +191,15 @@ function renderSummary(rows) {
       <div class="dist-legend">${legend}</div></div>`;
 }
 
-function renderClassFilter(rows) {
-  const sel = $('classFilter');
-  const classes = [...new Set(rows.map(r => r.cls))].sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
-  const key = classes.join('|');
-  if (sel.dataset.key === key) return;
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">전체</option>' + classes.map(c => `<option value="${c}">${c}반</option>`).join('');
-  sel.value = classes.includes(cur) ? cur : '';
-  sel.dataset.key = key;
-}
-
-function renderGrid(all) {
-  const cls = $('classFilter').value;
+function renderGrid(classRows, totalCount) {
   const sort = $('sortBy').value;
-  let rows = all.filter(r => !cls || r.cls === cls);
+  let rows = [...classRows];
   if ($('awayOnly').checked) rows = rows.filter(r => r.away);
   if (sort === 'step') rows.sort((a, b) => (a.submitted ? 7 : a.step) - (b.submitted ? 7 : b.step) || a.sid.localeCompare(b.sid));
   if (sort === 'away') rows.sort((a, b) => b.awayCount - a.awayCount || b.awayMs - a.awayMs || a.sid.localeCompare(b.sid));
 
-  $('emptyNote').hidden = all.length > 0;
-  $('shownCount').textContent = all.length ? `${rows.length}명 표시` : '';
+  $('emptyNote').hidden = totalCount > 0;
+  $('shownCount').textContent = totalCount ? `${selClass ? selClass + '반 · ' : ''}${rows.length}명 표시` : '';
   $('grid').innerHTML = rows.map(r => {
     const state = !r.online ? 'off' : r.away ? 'away' : r.stale ? 'stale' : r.submitted ? 'done' : '';
     const conn = !r.online ? '<span class="conn"><i></i>오프라인</span>'
@@ -190,7 +231,7 @@ function renderGrid(all) {
   }).join('');
 }
 
-for (const id of ['classFilter', 'sortBy', 'awayOnly']) $(id).addEventListener('change', render);
+for (const id of ['sortBy', 'awayOnly']) $(id).addEventListener('change', render);
 
 // ----- 카드 버튼 -----
 $('grid').addEventListener('click', async e => {
@@ -225,70 +266,81 @@ function openLiveDetail(sid) {
   openDetail(() => studentRows().find(x => x.sid === sid), '실시간');
 }
 
-// ----- 평가 제어 -----
+// ----- 평가 제어 (선택한 학급만) -----
+const sidsOfClass = cls => Object.keys(db$.roster).filter(sid => clsOf(sid) === cls);
+
 $('startBtn').addEventListener('click', async () => {
+  const cls = selClass;
+  if (!cls) return;
   const ok = await confirmDialog({
-    title: '평가를 시작할까요?',
-    body: '학생 화면이 대기 화면에서 평가 화면으로 바로 바뀌어요.',
+    title: `${cls}반 평가를 시작할까요?`,
+    body: `${cls}반 학생 ${sidsOfClass(cls).length}명의 화면이 대기 화면에서 평가 화면으로 바로 바뀌어요.\n다른 반 학생은 계속 대기 화면에 있어요.`,
     ok: '평가 시작',
   });
   if (!ok) return;
   try {
     await update(ref(db, 'exam'), {
-      status: 'running', examId: makeExamId(new Date(serverNow())), startedAt: serverTimestamp(), endedAt: null,
+      [`classes/${cls}`]: { status: 'running', examId: makeExamId(new Date(serverNow())), startedAt: serverTimestamp() },
+      // 학급별로 바꾸기 전에 쓰던 전체 상태 값은 지운다
+      status: null, examId: null, startedAt: null, endedAt: null,
     });
-    toast('평가를 시작했어요.');
+    toast(`${cls}반 평가를 시작했어요.`);
   } catch (err) { console.error(err); toast('시작하지 못했어요.'); }
 });
 
 $('endBtn').addEventListener('click', async () => {
-  const notSubmitted = studentRows().filter(r => !r.submitted).length;
+  const cls = selClass;
+  if (!cls) return;
+  const notSubmitted = studentRows().filter(r => r.cls === cls && !r.submitted).length;
   const ok = await confirmDialog({
-    title: '평가를 종료할까요?',
-    body: `학생들은 더 이상 입력할 수 없어요.${notSubmitted ? `\n아직 제출하지 않은 학생이 ${notSubmitted}명 있어요. 이 학생들은 지금까지 저장된 내용이 결과로 남아요.` : ''}`,
+    title: `${cls}반 평가를 종료할까요?`,
+    body: `${cls}반 학생들은 더 이상 입력할 수 없어요.${notSubmitted ? `\n아직 제출하지 않은 학생이 ${notSubmitted}명 있어요. 이 학생들은 지금까지 저장된 내용이 결과로 남아요.` : ''}`,
     ok: '평가 종료', danger: true,
   });
   if (!ok) return;
   $('endBtn').disabled = true;
   try {
-    // 1) 종료 시점의 모든 학생 상태를 결과로 저장 → 2) 상태를 종료로 바꾼다 (1이 실패하면 2를 하지 않는다)
+    // 1) 종료 시점의 이 학급 학생 상태를 결과로 저장 → 2) 상태를 종료로 바꾼다 (1이 실패하면 2를 하지 않는다)
     const [ex, roster, progress, presence] = await Promise.all(
-      ['exam', 'roster', 'progress', 'presence'].map(k => get(ref(db, k)).then(s => s.val() || {})));
-    // 같은 ID의 결과가 이미 있으면 덮어쓰지 않도록 뒤에 번호를 붙인다
-    const base = ex.examId || makeExamId(new Date(serverNow()));
-    let examId = base;
-    for (let n = 2; (await get(ref(db, `results/${examId}/meta`))).exists(); n++) examId = `${base}-${n}`;
+      [`exam/classes/${cls}`, 'roster', 'progress', 'presence'].map(k => get(ref(db, k)).then(s => s.val() || {})));
+    const examId = ex.examId || makeExamId(new Date(serverNow()));
+    // 결과 ID = 학급_회차. 같은 ID의 결과가 이미 있으면 덮어쓰지 않도록 뒤에 번호를 붙인다
+    const base = `${cls}_${examId}`;
+    let resultId = base;
+    for (let n = 2; (await get(ref(db, `results/${resultId}/meta`))).exists(); n++) resultId = `${base}-${n}`;
     const students = {};
     for (const sid of Object.keys(roster)) {
-      students[sid] = { classId: roster[sid].classId || classOf(sid), progress: progress[sid] || null, presence: presence[sid] || null };
+      if ((roster[sid].classId || classOf(sid)) !== cls) continue;
+      students[sid] = { classId: cls, progress: progress[sid] || null, presence: presence[sid] || null };
     }
-    await set(ref(db, `results/${examId}`), {
-      meta: { startedAt: ex.startedAt || null, endedAt: serverTimestamp(), count: Object.keys(students).length },
+    await set(ref(db, `results/${resultId}`), {
+      meta: { classId: cls, examId, startedAt: ex.startedAt || null, endedAt: serverTimestamp(), count: Object.keys(students).length },
       students,
     });
-    await update(ref(db, 'exam'), { status: 'ended', examId, endedAt: serverTimestamp() });
-    toast(`평가를 종료하고 결과를 저장했어요 (${examId}).`, 4000);
+    await update(ref(db, `exam/classes/${cls}`), { status: 'ended', examId, resultId, endedAt: serverTimestamp() });
+    toast(`${cls}반 평가를 종료하고 결과를 저장했어요.`, 4000);
   } catch (err) {
     console.error(err);
     toast('종료하지 못했어요. 결과 저장에 실패해서 평가는 계속 진행 중이에요.', 5000);
   } finally {
-    renderHeader();
+    renderClassBar();
   }
 });
 
 $('resetExamBtn').addEventListener('click', async () => {
+  const cls = selClass;
+  if (!cls) return;
   const ok = await confirmDialog({
-    title: '새 평가를 준비할까요?',
-    body: '학생들의 진행 데이터와 접속 기록을 모두 지우고 대기 상태로 돌아가요.\n명단, 비밀번호, 저장된 결과는 그대로 남아요.',
+    title: `${cls}반 평가를 다시 준비할까요?`,
+    body: `${cls}반 학생들의 진행 데이터와 접속 기록을 지우고 대기 상태로 돌아가요.\n다른 반, 명단, 비밀번호, 저장된 결과는 그대로 남아요.`,
     ok: '진행 데이터 지우기', danger: true,
   });
   if (!ok) return;
   try {
-    await update(ref(db), {
-      progress: null, presence: null,
-      'exam/status': 'ready', 'exam/examId': null, 'exam/startedAt': null, 'exam/endedAt': null,
-    });
-    toast('새 평가를 준비했어요. 평가 시작을 누르면 시작돼요.');
+    const patch = { [`exam/classes/${cls}`]: { status: 'ready' } };
+    for (const sid of sidsOfClass(cls)) { patch[`progress/${sid}`] = null; patch[`presence/${sid}`] = null; }
+    await update(ref(db), patch);
+    toast(`${cls}반을 대기 상태로 되돌렸어요. 평가 시작을 누르면 시작돼요.`);
   } catch (err) { console.error(err); toast('준비하지 못했어요.'); }
 });
 

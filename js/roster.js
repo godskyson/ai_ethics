@@ -114,6 +114,12 @@ async function removeStudents(sids, label) {
       patch[`roster/${s}`] = null; patch[`pins/${s}`] = null;
       patch[`progress/${s}`] = null; patch[`presence/${s}`] = null;
     }
+    // 학급의 학생이 모두 지워지면 그 학급의 평가 상태도 지운다
+    const gone = new Set(sids);
+    const remaining = Object.keys(current).filter(s => !gone.has(s));
+    for (const cls of new Set(sids.map(s => (current[s] && current[s].classId) || classOf(s)))) {
+      if (!remaining.some(s => ((current[s] && current[s].classId) || classOf(s)) === cls)) patch[`exam/classes/${cls}`] = null;
+    }
     // 이 학번으로 로그인해 있던 기기 정보도 지운다
     const claims = (await get(ref(db, 'claims'))).val() || {};
     const set = new Set(sids);

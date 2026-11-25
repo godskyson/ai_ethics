@@ -44,16 +44,28 @@
   <header class="t-head">
     <div class="t-title">
       <h1>AI 윤리 수행평가</h1>
-      <span class="badge" id="statusBadge">-</span>
+    </div>
+    <div class="t-actions">
+      <button type="button" class="btn-text" id="logoutBtn">로그아웃</button>
+    </div>
+  </header>
+
+  <!-- 학급별 평가 제어: 학급마다 따로 시작·종료한다 -->
+  <section class="class-bar" aria-label="평가 학급">
+    <div class="class-pick">
+      <label class="tool"><span>평가 학급</span>
+        <select id="classSel"><option value="">전체 보기</option></select>
+      </label>
+      <span class="badge" id="statusBadge" hidden></span>
       <span class="small muted" id="examMeta"></span>
     </div>
     <div class="t-actions">
       <button type="button" class="btn-primary" id="startBtn">평가 시작</button>
       <button type="button" class="btn-danger" id="endBtn">평가 종료</button>
-      <button type="button" id="resetExamBtn">새 평가 준비</button>
-      <button type="button" class="btn-text" id="logoutBtn">로그아웃</button>
+      <button type="button" id="resetExamBtn">다시 평가 준비</button>
     </div>
-  </header>
+    <div class="class-chips" id="classChips" aria-label="학급별 상태"></div>
+  </section>
 
   <section class="summary" id="summary" aria-label="요약"></section>
 
@@ -65,9 +77,6 @@
 
   <section id="dashView" role="tabpanel" aria-labelledby="tabDash">
     <div class="toolbar">
-      <label class="tool"><span>반</span>
-        <select id="classFilter"><option value="">전체</option></select>
-      </label>
       <label class="tool"><span>정렬</span>
         <select id="sortBy">
           <option value="sid">학번순</option>

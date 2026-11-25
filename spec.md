@@ -85,11 +85,16 @@
 ```jsonc
 {
   "exam": {
-    "status": "ready",          // "ready" | "running" | "ended"
-    "examId": "20261110-0905",
-    "title": "2학기 AI 윤리 수행평가",
-    "startedAt": 0, "endedAt": 0,  // serverTimestamp
-    "minChars": 50               // 윤리 서술 최소 글자 수 (확정)
+    // 평가 상태는 학급마다 따로 있다 (2026-11-25 변경: 학급별로 평가 시간이 다르므로)
+    "classes": {
+      "2-3": {
+        "status": "ready",        // "ready" | "running" | "ended" (값이 없으면 ready로 본다)
+        "examId": "20261110-090512",
+        "startedAt": 0, "endedAt": 0,  // serverTimestamp
+        "resultId": "2-3_20261110-090512"  // 종료할 때 저장한 결과의 ID
+      }
+    },
+    "minChars": 50               // 윤리 서술 최소 글자 수 (모든 학급 공통)
   },
   "roster": {
     "20301": { "classId": "2-3", "addedAt": 0 }   // 이름은 저장하지 않는다
@@ -122,9 +127,9 @@
     }
   },
   "results": {
-    "<examId>": {
-      "meta": { "title": "", "startedAt": 0, "endedAt": 0 },
-      "students": { "20301": { "classId": "", "progress": {}, "presence": {} } }
+    "2-3_20261110-090512": {     // 결과 ID = 학급_회차 (겹치면 -2, -3을 붙인다)
+      "meta": { "classId": "2-3", "examId": "20261110-090512", "startedAt": 0, "endedAt": 0, "count": 30 },
+      "students": { "20301": { "classId": "2-3", "progress": {}, "presence": {} } }  // 그 학급 학생만
     }
   }
 }
@@ -152,7 +157,7 @@
 3. `set(claims/{uid}, {sid, hash, at})`를 보낸다. 규칙이 `pins/{sid}/hash`와 비교해서 다르면 거부한다.
    - 거부되면 "학번 또는 비밀번호가 맞지 않아요"를 보여 준다. 등록되지 않은 학번과 비밀번호 오류를 구분해서 알려 주지 않는다.
 4. 쓰기가 성공하면 `pins/{sid}/mustChange`를 확인한다. 이 경로는 본인만 읽을 수 있으며, `hash`는 읽지 않는다.
-5. `mustChange`가 `true`면 비밀번호 변경 화면으로 간다. 아니면 `exam/status`에 따라 대기 화면이나 평가 화면으로 간다.
+5. `mustChange`가 `true`면 비밀번호 변경 화면으로 간다. 아니면 내 학급의 `exam/classes/{학급}/status`에 따라 대기 화면이나 평가 화면으로 간다.
 
 ### 5.2 비밀번호 변경 (한 번의 multi-path update)
 ```js
@@ -216,7 +221,7 @@ update(ref(db), {
       ".write": "auth != null && auth.token.email === 'TEACHER_EMAIL'",
       "$sid": {
         ".read": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid",
-        ".write": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val() && root.child('exam/status').val() === 'running'"
+        ".write": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val() && root.child('exam/classes/' + root.child('roster/' + $sid + '/classId').val() + '/status').val() === 'running'"
       }
     },
     "presence": {
@@ -250,11 +255,11 @@ update(ref(db), {
 [login] ──성공──▶ (mustChange?) ──예──▶ [changePin] ──▶ ┐
                          └──아니오──────────────────────┤
                                                         ▼
-                     exam.status: ready ──▶ [waiting]
+      내 학급 status: ready ──▶ [waiting]
                                   running ─▶ [step 1..5] ──제출──▶ [done]
                                   ended ───▶ [ended]
 ```
-- `exam/status`를 `onValue`로 구독해서 값이 바뀔 때마다 상태를 다시 결정한다.
+- 내 학급의 `exam/classes/{학급}/status`를 `onValue`로 구독해서 값이 바뀔 때마다 상태를 다시 결정한다.
 - `progress/{sid}/step`과 `submitted` 값을 읽어 이어 하기 위치를 정한다. `submitted`가 참이면 `[done]`으로 간다.
 - **제출 후 수정**: 평가가 `running`인 동안에는 `[done]`에서 `수정하기`를 눌러 1~5단계로 돌아갈 수 있다. 이때 `submitted:false`가 되고, 다시 제출해야 제출 완료로 표시된다. 다시 제출하지 않아도 마지막 저장본은 종료 스냅샷에 남는다.
 
@@ -285,7 +290,7 @@ update(ref(db), {
 
 ### 6.4 이탈 감지
 - `document.visibilitychange`(hidden)나 `window.blur`가 생기면 `state:'away'`로 쓰고, `awayCount`를 1 늘리고(`increment()` 사용. 값을 먼저 읽을 필요가 없다), `lastAwayAt`을 기록한다. 구현은 `js/presence.js`.
-- 횟수와 시간은 `exam/status`가 `running`일 때만 누적한다. 대기 화면에서는 `state`만 갱신한다.
+- 횟수와 시간은 내 학급의 평가 상태가 `running`일 때만 누적한다. 대기 화면에서는 `state`만 갱신한다.
 - `visible`이나 `focus`가 돌아오면 `state:'focused'`로 쓰고, 이탈해 있던 시간을 `awayMs`에 더한다.
 - blur와 visibilitychange가 함께 발생해도 한 번만 세도록 300ms 안의 중복 이벤트는 합친다.
 - 30초마다 `lastSeen`을 갱신해서 교사 화면이 "응답 없음"을 판단하는 데 쓴다.
@@ -299,7 +304,9 @@ update(ref(db), {
 ### 7.1 레이아웃 (1280px 이상)
 
 ```
-┌ 헤더: 평가 제목 · 상태 배지(대기/진행 중/종료) · [평가 시작] [평가 종료] · 경과 시간 ┐
+┌ 헤더: 평가 제목 · [로그아웃]                                                         ┐
+├ 학급 막대: 평가 학급 [선택] · 상태 배지 · 경과 시간 · [평가 시작] [평가 종료] [다시 평가 준비] ┤
+│           학급별 상태 칩 (1-1반 진행 중 · 2-3반 대기 …) — 누르면 그 학급 선택          │
 ├ 요약 줄: 전체 32 · 접속 30 · 이탈 중 2 · 단계별 막대(1▮2▮3▮4▮5▮완료) · 제출 12       ┤
 ├ 탭: [대시보드] [명단 관리] [결과 보기]                                              ┤
 │ 대시보드: 반 필터 · 정렬(학번/단계/이탈 횟수) · 이탈 중인 학생만 보기 토글           │
@@ -316,9 +323,10 @@ update(ref(db), {
 ### 7.2 평가 제어
 | 동작 | 처리 |
 |---|---|
-| 평가 시작 | `ready`일 때만 누를 수 있다. 새 `examId`를 만들고 `status:'running'`, `startedAt`을 쓴다 |
-| 평가 종료 | 확인 모달을 띄운다. `progress`, `presence`, `roster`를 한 번 읽어 `results/{examId}`에 스냅샷을 저장한 뒤 `status:'ended'`로 바꾼다. 스냅샷 저장이 실패하면 상태를 바꾸지 않는다 |
-| 새 평가 준비 | `ended`일 때만 누를 수 있다. "진행 데이터를 모두 지웁니다"라는 확인을 받는다. `progress`와 `presence`를 지우고 `status:'ready'`로 바꾼다 (명단, 비밀번호, 결과는 남긴다) |
+| 평가 학급 | 버튼은 **선택한 학급에만** 적용된다. '전체 보기'에서는 버튼이 잠긴다. 요약과 학생 카드도 선택한 학급만 보여 준다. 마지막 선택은 브라우저에 기억한다 |
+| 평가 시작 | 그 학급이 `ready`일 때만. `exam/classes/{학급}`에 새 `examId`, `status:'running'`, `startedAt`을 쓴다. 다른 학급 학생은 계속 대기 화면 |
+| 평가 종료 | 확인 모달을 띄운다. 그 학급 학생의 `progress`, `presence`를 `results/{학급}_{examId}`에 스냅샷으로 저장한 뒤 그 학급만 `status:'ended'`로 바꾼다. 스냅샷 저장이 실패하면 상태를 바꾸지 않는다 |
+| 다시 평가 준비 | 그 학급이 `ended`일 때만. 확인을 받고 **그 학급 학생의** `progress`와 `presence`만 지운 뒤 `status:'ready'`로 바꾼다 (다른 학급, 명단, 비밀번호, 결과는 남긴다) |
 
 제한 시간 타이머는 두지 않는다. 헤더의 경과 시간은 참고용으로만 표시한다.
 
@@ -333,7 +341,7 @@ update(ref(db), {
 ### 7.4 결과 보기와 CSV
 - `results` 목록(회차별)을 보여 주고, 회차를 고르면 학생별 표를 보여 준다. 표 안에서 서술 원문을 펼쳐 볼 수 있다.
 - CSV 열: `학번, 반, 최종단계, 제출여부, 제출시각, 제출횟수, 모델이름, 클래스목록, 테스트1, 결과1, 테스트2, 결과2, 테스트3, 결과3, 개인정보, 편향, 판단, 이탈횟수, 이탈시간(초), 붙여넣기횟수`.
-- UTF-8에 BOM을 붙이고, 셀 안의 따옴표와 줄바꿈은 이스케이프한다. 파일 이름은 `ai_ethics_{examId}.csv`.
+- UTF-8에 BOM을 붙이고, 셀 안의 따옴표와 줄바꿈은 이스케이프한다. 파일 이름은 `ai_ethics_{결과 ID}.csv`.
 
 ---
 

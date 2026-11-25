@@ -37,15 +37,22 @@ function rowsOf(examId) {
 }
 
 // ----- 회차 목록 -----
+// 결과 제목: 학급별 평가로 바뀐 뒤의 결과는 "2-3반 · 회차", 그 전 결과는 ID 그대로
+function titleOf(id) {
+  const meta = (all[id] && all[id].meta) || {};
+  return meta.classId ? `${meta.classId}반 · ${meta.examId || id}` : id;
+}
+
 function renderList() {
-  const ids = Object.keys(all).sort().reverse();
+  const ids = Object.keys(all).sort((a, b) =>
+    ((all[b].meta || {}).endedAt || 0) - ((all[a].meta || {}).endedAt || 0) || b.localeCompare(a)); // 최근 종료 순
   if (!ids.length) { $('examList').innerHTML = '<li class="muted">아직 저장된 결과가 없어요. 평가를 종료하면 여기에 생겨요.</li>'; return; }
   $('examList').innerHTML = ids.map(id => {
     const rows = rowsOf(id);
     const sub = rows.filter(r => r.submitted).length;
     const meta = all[id].meta || {};
     return `<li><button type="button" class="exam-item ${id === selected ? 'on' : ''}" data-exam="${escapeHtml(id)}">
-      <b>${escapeHtml(id)}</b>
+      <b>${escapeHtml(titleOf(id))}</b>
       <span class="small">${meta.endedAt ? fmtDateTime(meta.endedAt) + ' 종료' : ''}</span>
       <span class="small">제출 ${sub} / ${rows.length}명</span>
     </button></li>`;
@@ -75,7 +82,7 @@ function renderView() {
   el.innerHTML = `
     <div class="rv-head">
       <div>
-        <h2>${escapeHtml(selected)}</h2>
+        <h2>${escapeHtml(titleOf(selected))}</h2>
         <p class="small muted">${meta.startedAt ? fmtDateTime(meta.startedAt) + ' 시작 · ' : ''}${meta.endedAt ? fmtDateTime(meta.endedAt) + ' 종료' : ''}</p>
       </div>
       <div class="row">
