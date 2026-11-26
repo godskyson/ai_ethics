@@ -6,6 +6,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 import {
   getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+  setPersistence, browserSessionPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { firebaseConfig } from './firebase-config.js';
 
@@ -16,6 +17,7 @@ export const auth = getAuth(app);
 export {
   ref, get, set, update, remove, onValue, off, push, serverTimestamp, runTransaction, onDisconnect, increment,
   signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+  setPersistence, browserSessionPersistence,
 };
 
 // 서버 시간 보정: 기기 시계가 틀려도 교사·학생 화면이 같은 시각을 쓰게 한다

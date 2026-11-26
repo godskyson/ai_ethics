@@ -9,21 +9,25 @@ const STALE_MS = 90_000; // 접속 중인데 이 시간 동안 신호가 없으�
 // Firebase는 배열을 객체로 돌려줄 때가 있다
 export const arr = v => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []).filter(x => x != null);
 
+// 학생이 쓰는 값은 믿지 않는다: 숫자 칸은 숫자가 아니면 0으로 바꿔서, HTML에 그대로 넣어도 안전하게 한다.
+export const num = v => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
+
 // p: progress, pr: presence. now가 없으면(저장된 결과) 접속 상태는 따지지 않는다.
 export function makeRow(sid, classId, p, pr, now = null) {
-  p = p || null;
-  pr = pr || null;
+  p = p && typeof p === 'object' ? p : null;
+  pr = pr && typeof pr === 'object' ? pr : null;
   const online = now != null && !!(pr && pr.online);
   return {
     sid, cls: classId || classOf(sid), p, pr, online,
-    stale: online && pr.lastSeen && now - pr.lastSeen > STALE_MS,
+    stale: online && num(pr.lastSeen) > 0 && now - num(pr.lastSeen) > STALE_MS,
     away: online && pr.state === 'away',
-    step: p ? Math.min(Number(p.step) || 0, 6) : 0,
-    submitted: !!(p && p.submitted),
-    editing: !!(p && !p.submitted && (p.submitCount || 0) > 0),
-    awayCount: (pr && pr.awayCount) || 0,
-    awayMs: (pr && pr.awayMs) || 0,
-    pasteCount: (pr && pr.pasteCount) || 0,
+    step: p ? Math.min(Math.floor(num(p.step)), 6) : 0,
+    submitted: !!(p && p.submitted === true),
+    editing: !!(p && p.submitted !== true && num(p.submitCount) > 0),
+    submitCount: p ? Math.floor(num(p.submitCount)) : 0,
+    awayCount: pr ? Math.floor(num(pr.awayCount)) : 0,
+    awayMs: pr ? num(pr.awayMs) : 0,
+    pasteCount: pr ? Math.floor(num(pr.pasteCount)) : 0,
     neverSeen: !pr,
     live: now != null,
   };
@@ -48,7 +52,7 @@ function detailHTML(r) {
       <div>단계<b>${escapeHtml(stepLabel(r))}</b></div>
       <div>이탈<b>${r.awayCount}회 · ${fmtDuration(r.awayMs)}</b></div>
       <div>붙여넣기<b>${r.pasteCount}회</b></div>
-      <div>제출<b>${p.submittedAt ? fmtTime(p.submittedAt) : '-'}${(p.submitCount || 0) > 1 ? ` (${p.submitCount}회)` : ''}</b></div>
+      <div>제출<b>${num(p.submittedAt) ? fmtTime(num(p.submittedAt)) : '-'}${r.submitCount > 1 ? ` (${r.submitCount}회)` : ''}</b></div>
     </div></div>
     <div class="d-sec"><h3>모델 이름</h3><p class="d-text ${p.modelName ? '' : 'empty'}">${escapeHtml(p.modelName || '아직 입력하지 않았어요')}</p></div>
     <div class="d-sec"><h3>학습 데이터</h3>${ds.length ? ds.map((d, i) => `
@@ -58,10 +62,10 @@ function detailHTML(r) {
       const probs = arr(t.probs);
       return `<div class="d-test"><b>${i + 1}.</b> ${escapeHtml(t.text || '')}
         ${t.top ? `<div>→ <span class="badge" style="background: var(--c${colorOf(t.top)})">${escapeHtml(t.top)}</span>
-        <span class="probs">${probs.map(q => `${escapeHtml(q.label)} ${(q.prob * 100).toFixed(1)}%`).join(' · ')}</span></div>` : '<div class="probs">분류 전</div>'}</div>`;
+        <span class="probs">${probs.map(q => `${escapeHtml(q.label ?? '')} ${(num(q.prob) * 100).toFixed(1)}%`).join(' · ')}</span></div>` : '<div class="probs">분류 전</div>'}</div>`;
     }).join('') : '<p class="d-text empty">아직 입력하지 않았어요</p>'}</div>
     ${ETHICS.map(([k, title]) => {
-      const text = (ethics[k] || '').trim();
+      const text = String(ethics[k] ?? '').trim();
       return `<div class="d-sec"><h3>${title} <span class="small muted">${text.length}자</span></h3>
         <p class="d-text ${text ? '' : 'empty'}">${escapeHtml(text || '아직 쓰지 않았어요')}</p></div>`;
     }).join('')}`;

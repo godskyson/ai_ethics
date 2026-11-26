@@ -3,11 +3,11 @@ import {
   db, auth, ref, get, set, update, onValue, serverTimestamp,
   signInWithEmailAndPassword, signOut, onAuthStateChanged, onConnection, serverNow,
 } from './firebase.js';
-import { TEACHER_EMAIL } from './firebase-config.js';
+import { TEACHER_EMAIL, TEACHER_UID } from './firebase-config.js';
 import {
-  INITIAL_PIN, classOf, hashPin, makeExamId, fmtTime, fmtDuration, showError, toast, confirmDialog,
+  INITIAL_PIN, classOf, hashPin, makeExamId, fmtTime, fmtDuration, showError, toast, confirmDialog, escapeHtml,
 } from './common.js';
-import { STEP_NAMES, makeRow, stepLabel, openDetail, refreshDetail, isDetailOpen } from './detail.js';
+import { STEP_NAMES, num, makeRow, stepLabel, openDetail, refreshDetail, isDetailOpen } from './detail.js';
 import * as roster from './roster.js';
 import * as results from './results.js';
 import * as accessLog from './accesslog.js';
@@ -27,7 +27,7 @@ onConnection(connected => {
 
 // ----- 로그인 -----
 onAuthStateChanged(auth, user => {
-  const isTeacher = user && !user.isAnonymous && user.email === TEACHER_EMAIL;
+  const isTeacher = user && !user.isAnonymous && user.uid === TEACHER_UID;
   if (user && !isTeacher) {
     // 학생(익명) 세션이나 다른 계정이면 교사 화면을 쓸 수 없다
     if (!user.isAnonymous) signOut(auth);
@@ -212,10 +212,10 @@ function renderGrid(classRows, totalCount) {
     const filled = r.submitted ? 6 : r.step;
     const steps = Array.from({ length: 6 }, (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`).join('');
     const tag = r.submitted ? '<span class="badge ok">✓ 제출</span>' : r.editing ? '<span class="badge warn">수정 중</span>' : '';
-    const seen = r.pr && r.pr.lastSeen ? `마지막 신호 ${fmtTime(r.pr.lastSeen)}` : '접속 기록 없음';
-    const lastAway = r.pr && r.pr.lastAwayAt ? ` · 마지막 이탈 ${fmtTime(r.pr.lastAwayAt)}` : '';
-    return `<article class="card ${state}" data-sid="${r.sid}">
-      <div class="card-top"><span><span class="sid">${r.sid}</span><span class="cls">${r.cls}반</span></span>${conn}</div>
+    const seen = r.pr && num(r.pr.lastSeen) ? `마지막 신호 ${fmtTime(num(r.pr.lastSeen))}` : '접속 기록 없음';
+    const lastAway = r.pr && num(r.pr.lastAwayAt) ? ` · 마지막 이탈 ${fmtTime(num(r.pr.lastAwayAt))}` : '';
+    return `<article class="card ${state}" data-sid="${escapeHtml(r.sid)}">
+      <div class="card-top"><span><span class="sid">${escapeHtml(r.sid)}</span><span class="cls">${escapeHtml(r.cls)}반</span></span>${conn}</div>
       <div class="card-body">
         <div class="step-label"><span>${stepLabel(r)}</span>${tag}</div>
         <div class="steps ${r.submitted ? 'done' : ''}" aria-hidden="true">${steps}</div>

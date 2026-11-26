@@ -2,18 +2,18 @@
   "rules": {
     "exam": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'"
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'"
     },
     "roster": {
-      ".read": "auth != null && auth.token.email === 'king03603@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'",
+      ".read": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
       "$sid": {
         ".read": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid",
         ".validate": "$sid.matches(/^[1-3](0[1-9]|1[0-9])(0[1-9]|[1-4][0-9])$/) && newData.hasChild('classId')"
       }
     },
     "pins": {
-      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'",
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
       "$sid": {
         ".write": "auth != null && newData.exists() && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === data.child('hash').val()",
         ".validate": "newData.hasChildren(['hash', 'mustChange']) && newData.child('hash').isString() && newData.child('hash').val().length === 64 && newData.child('mustChange').isBoolean() && newData.parent().parent().child('roster/' + $sid).exists()",
@@ -22,22 +22,37 @@
         }
       }
     },
+    "loginAttempts": {
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
+      "$sid": {
+        ".write": "auth != null && newData.exists() && $sid.matches(/^[1-3](0[1-9]|1[0-9])(0[1-9]|[1-4][0-9])$/) && (!data.exists() || now - data.val() >= 3000)",
+        ".validate": "newData.isNumber() && newData.val() === now"
+      }
+    },
     "claims": {
-      ".read": "auth != null && auth.token.email === 'king03603@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'",
+      ".read": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['sid', 'hash']) && newData.child('sid').isString() && newData.parent().parent().child('pins/' + newData.child('sid').val() + '/hash').val() === newData.child('hash').val()"
+        ".validate": "newData.hasChildren(['sid', 'hash']) && newData.child('sid').isString() && newData.parent().parent().child('pins/' + newData.child('sid').val() + '/hash').val() === newData.child('hash').val() && (newData.parent().parent().child('loginAttempts/' + newData.child('sid').val()).val() === now || (data.child('sid').val() === newData.child('sid').val() && data.child('hash').val() === root.child('pins/' + newData.child('sid').val() + '/hash').val()))"
       }
     },
     "progress": {
-      ".read": "auth != null && auth.token.email === 'king03603@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'",
+      ".read": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
       "$sid": {
-        ".read": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid",
+        ".read": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val()",
         ".write": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val() && root.child('exam/classes/' + root.child('roster/' + $sid + '/classId').val() + '/status').val() === 'running'",
+        "step": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 6" },
         "modelName": { ".validate": "newData.isString() && newData.val().length <= 30" },
+        "trainedAt": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "submittedAt": { ".validate": "newData.isNumber()" },
+        "submitCount": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
+        "submitted": {
+          ".validate": "newData.isBoolean() && (newData.val() === false || (newData.parent().child('ethics/privacy').isString() && newData.parent().child('ethics/privacy').val().length >= 50 && newData.parent().child('ethics/bias').isString() && newData.parent().child('ethics/bias').val().length >= 50 && newData.parent().child('ethics/judgment').isString() && newData.parent().child('ethics/judgment').val().length >= 50))"
+        },
         "dataset": {
           ".validate": "newData.hasChildren()",
           "$i": {
@@ -45,35 +60,56 @@
             "label": { ".validate": "newData.isString() && newData.val().length <= 20" },
             "texts": {
               "$j": { ".validate": "$j.matches(/^([0-9]|[12][0-9])$/) && newData.isString() && newData.val().length <= 100" }
-            }
+            },
+            "$other": { ".validate": false }
           }
         },
         "tests": {
           "$i": {
             ".validate": "$i.matches(/^[0-2]$/)",
-            "text": { ".validate": "newData.isString() && newData.val().length <= 100" }
+            "text": { ".validate": "newData.isString() && newData.val().length <= 100" },
+            "top": { ".validate": "newData.isString() && newData.val().length <= 20" },
+            "probs": {
+              "$j": {
+                ".validate": "$j.matches(/^[0-5]$/) && newData.hasChildren(['label', 'prob'])",
+                "label": { ".validate": "newData.isString() && newData.val().length <= 20" },
+                "prob": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+                "$other": { ".validate": false }
+              }
+            },
+            "$other": { ".validate": false }
           }
         },
         "ethics": {
           "$k": { ".validate": "($k === 'privacy' || $k === 'bias' || $k === 'judgment') && newData.isString() && newData.val().length <= 1000" }
-        }
+        },
+        "$other": { ".validate": false }
       }
     },
     "presence": {
-      ".read": "auth != null && auth.token.email === 'king03603@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'",
+      ".read": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
       "$sid": {
-        ".read": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid",
-        ".write": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val()"
+        ".read": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val()",
+        ".write": "auth != null && newData.exists() && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val()",
+        "online": { ".validate": "newData.isBoolean()" },
+        "state": { ".validate": "newData.val() === 'focused' || newData.val() === 'away'" },
+        "lastSeen": { ".validate": "newData.isNumber()" },
+        "lastAwayAt": { ".validate": "newData.isNumber()" },
+        "lastPasteAt": { ".validate": "newData.isNumber()" },
+        "awayCount": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
+        "awayMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
+        "pasteCount": { ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() >= data.val())" },
+        "$other": { ".validate": false }
       }
     },
     "results": {
-      ".read": "auth != null && auth.token.email === 'king03603@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'"
+      ".read": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'"
     },
     "teacherLog": {
-      ".read": "auth != null && auth.token.email === 'king03603@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'",
+      ".read": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
+      ".write": "auth != null && auth.uid === 'kpr1Jp0aItgWbI0ltLyvpRXMTKb2'",
       "$id": {
         ".validate": "newData.hasChildren(['ip', 'at']) && newData.child('ip').isString() && newData.child('ip').val().length <= 64"
       }

@@ -1,7 +1,7 @@
 // 결과 보기: 평가 종료 때 저장된 results/{examId} 스냅샷을 회차별로 보고 CSV로 내려받는다.
 import { db, ref, onValue, remove } from './firebase.js';
 import { fmtDateTime, fmtDuration, escapeHtml, toast, confirmDialog } from './common.js';
-import { ETHICS, arr, makeRow, stepLabel, openDetail } from './detail.js';
+import { ETHICS, arr, num, makeRow, stepLabel, openDetail } from './detail.js';
 
 const $ = id => document.getElementById(id);
 let all = {};          // results 전체
@@ -102,11 +102,11 @@ function renderView() {
       <tbody>${shown.map(r => {
         const p = r.p || {};
         const tests = arr(p.tests).map(t => t.top ? escapeHtml(t.top) : '-').join(' · ') || '-';
-        const lens = ETHICS.map(([k]) => ((p.ethics || {})[k] || '').trim().length).join(' / ');
+        const lens = ETHICS.map(([k]) => String((p.ethics || {})[k] ?? '').trim().length).join(' / ');
         return `<tr class="${r.submitted ? '' : 'unsub'}">
-          <td class="num">${r.sid}</td><td>${r.cls}</td>
+          <td class="num">${escapeHtml(r.sid)}</td><td>${escapeHtml(r.cls)}</td>
           <td>${escapeHtml(stepLabel(r))}${r.editing ? ' <span class="badge warn">수정 중</span>' : ''}</td>
-          <td class="num">${p.submittedAt ? fmtDateTime(p.submittedAt).slice(11) : '-'}${(p.submitCount || 0) > 1 ? ` <span class="small muted">(${p.submitCount}회)</span>` : ''}</td>
+          <td class="num">${num(p.submittedAt) ? fmtDateTime(num(p.submittedAt)).slice(11) : '-'}${r.submitCount > 1 ? ` <span class="small muted">(${r.submitCount}회)</span>` : ''}</td>
           <td>${escapeHtml(p.modelName || '-')}</td>
           <td>${tests}</td>
           <td class="num">${p.ethics ? lens : '-'}</td>
@@ -148,7 +148,9 @@ const CSV_HEAD = ['학번', '반', '최종단계', '제출여부', '제출시각
   '이탈횟수', '이탈시간(초)', '붙여넣기횟수'];
 
 function csvCell(v) {
-  const s = v == null ? '' : String(v);
+  let s = v == null ? '' : String(v);
+  // 수식 삽입 방지: =, +, -, @, 탭, CR로 시작하는 칸은 엑셀이 수식으로 실행할 수 있어서 앞에 '를 붙인다
+  if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -161,13 +163,13 @@ export function toCsv(rows) {
     const testCols = [0, 1, 2].flatMap(i => {
       const t = tests[i] || {};
       const top = arr(t.probs)[0];
-      return [t.text || '', t.top ? `${t.top} ${top ? (top.prob * 100).toFixed(1) + '%' : ''}`.trim() : ''];
+      return [String(t.text ?? ''), t.top ? `${t.top} ${top ? (num(top.prob) * 100).toFixed(1) + '%' : ''}`.trim() : ''];
     });
     lines.push([
-      r.sid, r.cls, stepLabel(r), r.submitted ? 'O' : 'X', fmtDateTime(p.submittedAt), p.submitCount || 0,
-      p.modelName || '', arr(p.dataset).map(d => d.label).join(' / '),
+      r.sid, r.cls, stepLabel(r), r.submitted ? 'O' : 'X', fmtDateTime(num(p.submittedAt)), r.submitCount,
+      String(p.modelName ?? ''), arr(p.dataset).map(d => d.label).join(' / '),
       ...testCols,
-      (ethics.privacy || '').trim(), (ethics.bias || '').trim(), (ethics.judgment || '').trim(),
+      String(ethics.privacy ?? '').trim(), String(ethics.bias ?? '').trim(), String(ethics.judgment ?? '').trim(),
       r.awayCount, Math.round(r.awayMs / 1000), r.pasteCount,
     ]);
   }

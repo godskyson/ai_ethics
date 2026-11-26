@@ -176,6 +176,16 @@ update(ref(db), {
 `set(pins/{sid}, { hash: hashPin(sid,'0000'), mustChange: true })`를 쓴다. 이렇게 하면 그 학생의 기존 로그인 세션이 모두 무효가 된다.
 무효가 된 학생은 스스로 오프라인을 기록할 수 없으므로, 같은 update에서 `presence/{sid}/online: false`도 함께 쓴다 (M5에서 추가).
 
+### 5.3.1 보안 보강 (2026-11-26 점검 후)
+
+- 교사 판별: `auth.token.email` 대신 `auth.uid === '<교사 uid>'`.
+- 로그인 시도 제한: 로그인은 `claims/{uid}`와 `loginAttempts/{sid}`(serverTimestamp)를 한 번의 update로 쓴다. `loginAttempts/{sid}`는 직전 값과 3초 이상 떨어져야 쓸 수 있고, claim은 그 값이 `now`일 때만(=이번 시도와 함께일 때만) 새로 만들 수 있다. 비밀번호 변경처럼 이미 유효한 claim을 갱신할 때는 시도 기록이 필요 없다.
+- `presence/{sid}`: 칸마다 형식 검사, 정해진 칸 외 거부(`$other: false`), `awayCount`·`awayMs`·`pasteCount`는 감소 불가, 학생은 삭제 불가.
+- `progress/{sid}`: 정해진 칸만 허용, `step` 0~6, `submitCount` 감소 불가, `submitted: true`는 서술 3항목이 모두 50자 이상일 때만.
+- `progress`, `presence` 읽기도 claim의 해시가 현재 비밀번호와 같아야 한다 (비밀번호를 바꾼 뒤 예전 기기에서 읽기 차단).
+- 학생 로그인은 `browserSessionPersistence`(탭 단위)로 보관한다.
+- 교사 화면은 학생이 쓴 숫자 값을 `num()`으로 숫자로 바꾼 뒤 표시하고, CSV는 `= + - @`로 시작하는 칸 앞에 `'`를 붙인다.
+
 ### 5.4 보안 규칙 초안 (`database.rules.json`)
 
 > **실제 규칙은 저장소의 `database.rules.json`이 기준이다.** M1에서 아래 초안을 다음과 같이 고쳤다.

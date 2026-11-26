@@ -1,7 +1,8 @@
 // 학생 화면: 로그인 → (비밀번호 변경) → 대기 / 평가 / 종료
 import {
-  db, auth, ref, get, set, update, remove, onValue, serverTimestamp, onDisconnect,
+  db, auth, ref, get, update, remove, onValue, serverTimestamp, onDisconnect,
   signInAnonymously, onAuthStateChanged, onConnection, isPermissionDenied,
+  setPersistence, browserSessionPersistence,
 } from './firebase.js';
 import { INITIAL_PIN, isValidSid, isValidPin, classOf, hashPin, showError, toast } from './common.js';
 import * as exam from './exam.js';
@@ -84,6 +85,9 @@ onConnection(connected => {
 });
 
 // ----- 익명 로그인 -----
+// 공용 크롬북 대비: 로그인을 이 탭에만 보관한다. 새로고침에는 유지되고, 탭이나 브라우저를 닫으면 로그인이 끝난다.
+await setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
+
 onAuthStateChanged(auth, async user => {
   if (!user) {
     try { await signInAnonymously(auth); }
@@ -119,8 +123,24 @@ async function restoreSession() {
 }
 
 // ----- 로그인 -----
+// 보안 규칙은 학번마다 로그인 시도 사이에 3초 이상을 강제한다 (비밀번호 무차별 대입 방지).
+// 화면에서도 3초를 기다리게 해서, 맞는 비밀번호인데 너무 빨리 다시 눌러 거부되는 일을 막는다.
+const RETRY_MS = 3500;
 let fails = 0;
 let lockUntil = 0;
+
+function lockFor(ms) {
+  lockUntil = Date.now() + ms;
+  const btn = $('loginBtn');
+  btn.disabled = true;
+  const tick = () => {
+    const left = Math.ceil((lockUntil - Date.now()) / 1000);
+    if (left <= 0) { btn.disabled = false; btn.textContent = '로그인'; return; }
+    btn.textContent = `${left}초 후 다시`;
+    setTimeout(tick, 250);
+  };
+  tick();
+}
 
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
@@ -128,9 +148,7 @@ $('loginForm').addEventListener('submit', async e => {
   const sid = $('sid').value.trim();
   const pin = $('pin').value.trim();
 
-  if (Date.now() < lockUntil) {
-    return showError(msg, `잠시 후 다시 시도해 주세요. (${Math.ceil((lockUntil - Date.now()) / 1000)}초)`);
-  }
+  if (Date.now() < lockUntil) return;
   if (!isValidSid(sid)) { $('sid').focus(); return showError(msg, '학번 5자리를 확인해 주세요. 예: 10101'); }
   if (!isValidPin(pin)) { $('pin').focus(); return showError(msg, '비밀번호는 숫자 4자리예요.'); }
   if (!state.uid) return showError(msg, '아직 서버에 연결 중이에요. 잠시 후 다시 눌러 주세요.');
@@ -138,10 +156,15 @@ $('loginForm').addEventListener('submit', async e => {
   const btn = $('loginBtn');
   btn.disabled = true;
   msg.textContent = '';
+  let locked = false;
   try {
     const hash = await hashPin(sid, pin);
     // 보안 규칙이 이 해시와 저장된 비밀번호 해시를 비교한다. 다르면 거부된다.
-    await set(ref(db, `claims/${state.uid}`), { sid, hash, at: serverTimestamp() });
+    // 시도 시각(loginAttempts)을 함께 써야 하고, 같은 학번의 직전 시도와 3초 이상 떨어져 있어야 한다.
+    await update(ref(db), {
+      [`claims/${state.uid}`]: { sid, hash, at: serverTimestamp() },
+      [`loginAttempts/${sid}`]: serverTimestamp(),
+    });
     fails = 0;
     $('pin').value = '';
     await startSession(sid);
@@ -149,16 +172,18 @@ $('loginForm').addEventListener('submit', async e => {
   } catch (err) {
     if (isPermissionDenied(err)) {
       fails++;
-      if (fails >= 5) { lockUntil = Date.now() + 30_000; fails = 0; }
       $('pin').value = '';
       $('pin').focus();
-      showError(msg, '학번 또는 비밀번호가 맞지 않아요.');
+      showError(msg, '학번 또는 비밀번호가 맞지 않아요. 맞게 입력했다면 몇 초 뒤 다시 눌러 주세요.');
+      lockFor(fails >= 5 ? 30_000 : RETRY_MS);
+      if (fails >= 5) fails = 0;
+      locked = true;
     } else {
       console.error(err);
       showError(msg, '로그인하지 못했어요. 인터넷 연결을 확인해 주세요.');
     }
   } finally {
-    btn.disabled = false;
+    if (!locked) btn.disabled = false;
   }
 });
 

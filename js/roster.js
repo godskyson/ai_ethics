@@ -112,7 +112,7 @@ async function removeStudents(sids, label) {
     const patch = {};
     for (const s of sids) {
       patch[`roster/${s}`] = null; patch[`pins/${s}`] = null;
-      patch[`progress/${s}`] = null; patch[`presence/${s}`] = null;
+      patch[`progress/${s}`] = null; patch[`presence/${s}`] = null; patch[`loginAttempts/${s}`] = null;
     }
     // 학급의 학생이 모두 지워지면 그 학급의 평가 상태도 지운다
     const gone = new Set(sids);
