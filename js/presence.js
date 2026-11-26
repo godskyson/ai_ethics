@@ -1,7 +1,7 @@
 // 접속·이탈·붙여넣기 기록 → presence/{sid}
 // 교사 대시보드가 이 값을 실시간으로 본다.
 // - state: 'focused' | 'away' (로그인한 동안 항상 갱신)
-// - awayCount, awayMs, lastAwayAt, pasteCount: 평가가 진행 중일 때만 누적한다
+// - awayCount, awayMs, lastAwayAt, pasteCount: 평가가 진행 중이고 제출 전일 때만 누적한다 (isCounting)
 // 카운터는 increment()로 올려서 값을 먼저 읽지 않아도 된다.
 import { db, ref, update, serverTimestamp, increment, isPermissionDenied } from './firebase.js';
 

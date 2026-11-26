@@ -213,9 +213,10 @@ async function startSession(sid) {
     }
   }));
 
-  // 화면 이탈·붙여넣기 기록 (평가가 진행 중일 때만 횟수를 센다)
+  // 화면 이탈·붙여넣기 기록. 횟수는 평가 진행 중이고 아직 제출하지 않았을 때만 센다.
+  // 제출 완료한 학생도 '이탈 중' 상태는 교사에게 보이지만 횟수·시간은 늘지 않는다 (수정하기를 누르면 다시 센다).
   presence.start(sid, {
-    isCounting: () => state.examStatus === 'running',
+    isCounting: () => state.examStatus === 'running' && !(exam.isLoaded() && exam.isSubmitted()),
     onDenied: () => forceLogout('다시 로그인해 주세요.'),
   });
 }

@@ -10,6 +10,7 @@ import {
 import { STEP_NAMES, makeRow, stepLabel, openDetail, refreshDetail, isDetailOpen } from './detail.js';
 import * as roster from './roster.js';
 import * as results from './results.js';
+import * as accessLog from './accesslog.js';
 
 const $ = id => document.getElementById(id);
 
@@ -33,9 +34,11 @@ onAuthStateChanged(auth, user => {
   }
   $('loginView').hidden = !!isTeacher;
   $('appView').hidden = !isTeacher;
-  if (isTeacher) startDashboard();
+  if (isTeacher) { startDashboard(); accessLog.record(); }
   else { stopDashboard(); $('email').focus(); }
 });
+
+$('accessLogBtn').addEventListener('click', () => accessLog.open());
 
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
@@ -59,7 +62,7 @@ $('loginForm').addEventListener('submit', async e => {
   }
 });
 
-$('logoutBtn').addEventListener('click', () => signOut(auth));
+$('logoutBtn').addEventListener('click', () => { accessLog.forget(); signOut(auth); });
 
 // ----- 구독 -----
 let ticker = null;

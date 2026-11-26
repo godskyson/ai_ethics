@@ -70,6 +70,13 @@
     "results": {
       ".read": "auth != null && auth.token.email === 'king03603@gmail.com'",
       ".write": "auth != null && auth.token.email === 'king03603@gmail.com'"
+    },
+    "teacherLog": {
+      ".read": "auth != null && auth.token.email === 'king03603@gmail.com'",
+      ".write": "auth != null && auth.token.email === 'king03603@gmail.com'",
+      "$id": {
+        ".validate": "newData.hasChildren(['ip', 'at']) && newData.child('ip').isString() && newData.child('ip').val().length <= 64"
+      }
     }
   }
 }

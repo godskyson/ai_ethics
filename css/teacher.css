@@ -84,6 +84,14 @@
 .card-foot button { flex: 1; padding: 5px 8px; font-size: .875rem; box-shadow: none; }
 .empty-note { border: 1.5px dashed var(--ink); background: var(--field); padding: 18px; }
 
+/* ----- 접속 기록 ----- */
+#accessLog { max-width: 560px; }
+#accessLogBody { padding-bottom: 18px; }
+.log-last { display: grid; gap: 2px; border: var(--line); background: var(--accent); padding: 10px 14px; margin-bottom: 14px; }
+.log-last b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.log-table { margin-bottom: 10px; border: var(--line); }
+.log-table tr.me td { background: #fff8d6; }
+
 /* ----- 상세 ----- */
 .modal.detail { max-width: 760px; max-height: 88dvh; }
 .modal.detail[open] { display: flex; flex-direction: column; }

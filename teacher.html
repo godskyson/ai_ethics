@@ -46,6 +46,7 @@
       <h1>AI 윤리 수행평가</h1>
     </div>
     <div class="t-actions">
+      <button type="button" class="btn-sm" id="accessLogBtn">접속 기록</button>
       <button type="button" class="btn-text" id="logoutBtn">로그아웃</button>
     </div>
   </header>
@@ -158,6 +159,15 @@
     <button type="button" class="btn-sm" id="detailClose">닫기</button>
   </div>
   <div class="modal-body detail-body" id="detailBody"></div>
+</dialog>
+
+<!-- 교사 계정 접속 기록 -->
+<dialog class="modal" id="accessLog" aria-labelledby="accessLogTitle">
+  <div class="modal-head detail-head">
+    <h2 id="accessLogTitle">교사 계정 접속 기록</h2>
+    <button type="button" class="btn-sm" id="accessLogClose">닫기</button>
+  </div>
+  <div class="modal-body" id="accessLogBody"></div>
 </dialog>
 
 <script type="module" src="js/teacher.js"></script>

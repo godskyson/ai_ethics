@@ -126,6 +126,9 @@
       "pasteCount": 1, "lastSeen": 0
     }
   },
+  "teacherLog": {               // 교사 계정 접속 기록 (교사만 읽기·쓰기, 최근 30개)
+    "<pushId>": { "ip": "203.0.113.7", "at": 0, "device": "Chrome · Windows" }
+  },
   "results": {
     "2-3_20261110-090512": {     // 결과 ID = 학급_회차 (겹치면 -2, -3을 붙인다)
       "meta": { "classId": "2-3", "examId": "20261110-090512", "startedAt": 0, "endedAt": 0, "count": 30 },
@@ -231,7 +234,10 @@ update(ref(db), {
         ".write": "auth != null && root.child('claims/' + auth.uid + '/sid').val() === $sid && root.child('claims/' + auth.uid + '/hash').val() === root.child('pins/' + $sid + '/hash').val()"
       }
     },
-    "results": {
+    "teacherLog": {               // 교사 계정 접속 기록 (교사만 읽기·쓰기, 최근 30개)
+    "<pushId>": { "ip": "203.0.113.7", "at": 0, "device": "Chrome · Windows" }
+  },
+  "results": {
       ".read": "auth != null && auth.token.email === 'TEACHER_EMAIL'",
       ".write": "auth != null && auth.token.email === 'TEACHER_EMAIL'"
     }
@@ -290,7 +296,7 @@ update(ref(db), {
 
 ### 6.4 이탈 감지
 - `document.visibilitychange`(hidden)나 `window.blur`가 생기면 `state:'away'`로 쓰고, `awayCount`를 1 늘리고(`increment()` 사용. 값을 먼저 읽을 필요가 없다), `lastAwayAt`을 기록한다. 구현은 `js/presence.js`.
-- 횟수와 시간은 내 학급의 평가 상태가 `running`일 때만 누적한다. 대기 화면에서는 `state`만 갱신한다.
+- 횟수와 시간은 내 학급의 평가 상태가 `running`이고 **아직 제출하지 않았을 때만** 누적한다 (2026-11-26: 제출 완료 학생은 `state`만 갱신, 수정하기를 누르면 다시 센다). 누적한다. 대기 화면에서는 `state`만 갱신한다.
 - `visible`이나 `focus`가 돌아오면 `state:'focused'`로 쓰고, 이탈해 있던 시간을 `awayMs`에 더한다.
 - blur와 visibilitychange가 함께 발생해도 한 번만 세도록 300ms 안의 중복 이벤트는 합친다.
 - 30초마다 `lastSeen`을 갱신해서 교사 화면이 "응답 없음"을 판단하는 데 쓴다.
